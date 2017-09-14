@@ -26,8 +26,14 @@ import org.jline.terminal.TerminalBuilder;
 import java.io.IOException;
 import java.io.PrintStream;
 
+/**
+ * Program entry-point, handles command line input/output,
+ * sets up JLine reader and registers commands.
+ */
 public class Main {
     public static void main(String[] args) throws IOException {
+        // TODO args
+        // Register commands
         CmdManager manager = new CmdManager();
         manager.register(new LsJvm());
 
@@ -42,6 +48,7 @@ public class Main {
         PrintStream out = new PrintStream(terminal.output());
         System.setOut(out);
 
+        // CLI Handling
         while (true) {
             String line = reader.readLine("(jdb) ");
 
