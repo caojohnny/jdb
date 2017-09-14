@@ -14,7 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.gmail.woodyc40.topics;
+package com.gmail.woodyc40.topics.infra;
 
-public class QueryBuilder {
+public class JvmContext {
+
 }
