@@ -113,3 +113,8 @@ Watching: int a = 3;
 Scenario:3: "3"
 (jdb) exit
 ```
+
+## Reference links
+
+  - [Connector documentation](http://docs.oracle.com/javase/7/docs/technotes/guides/jpda/conninv.html)
+  - [Event list](https://docs.oracle.com/javase/7/docs/jdk/api/jpda/jdi/com/sun/jdi/event/package-summary.html)
