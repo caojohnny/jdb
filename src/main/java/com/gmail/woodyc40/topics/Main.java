@@ -16,6 +16,7 @@
  */
 package com.gmail.woodyc40.topics;
 
+import com.gmail.woodyc40.topics.cmd.Help;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
@@ -34,8 +35,9 @@ public class Main {
     public static void main(String[] args) throws IOException {
         // TODO args
         // Register commands
-        CmdManager manager = new CmdManager();
+        CmdManager manager = CmdManager.getInstance();
         manager.register(new LsJvm());
+        manager.register(new Help());
 
         Terminal terminal = TerminalBuilder.
                 builder().
@@ -61,6 +63,7 @@ public class Main {
             }
 
             manager.dispatch(line);
+            System.out.println();
         }
     }
 }

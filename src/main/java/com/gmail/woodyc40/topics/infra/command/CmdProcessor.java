@@ -16,6 +16,41 @@
  */
 package com.gmail.woodyc40.topics.infra.command;
 
+/**
+ * The superinterface implemented by command processing
+ * handlers.
+ */
 public interface CmdProcessor {
+    /**
+     * Obtains the "full" name of the command.
+     *
+     * @return the command name
+     */
+    String name();
+
+    /**
+     * Obtains the help message for the command.
+     *
+     * @return the help message
+     */
+    String help();
+
+    /**
+     * Obtains the short-hand aliases for the command. May
+     * be left unimplemented.
+     *
+     * @return the command aliases
+     */
+    default String[] aliases() {
+        return new String[0];
+    }
+
+    /**
+     * Called by the command handler to process the command
+     * when it is called.
+     *
+     * @param alias the alias used by the user
+     * @param args the command arguments
+     */
     void process(String alias, String[] args);
 }

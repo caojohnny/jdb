@@ -16,19 +16,56 @@
  */
 package com.gmail.woodyc40.topics.cmd;
 
-import com.gmail.woodyc40.topics.infra.command.Cmd;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
-import com.sun.jdi.Bootstrap;
-import com.sun.jdi.VirtualMachineManager;
-import com.sun.jdi.connect.Connector;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 public class LsJvm implements CmdProcessor {
-    @Cmd(name = "lsjvm", help = "Lists the currently running JVMs on this system")
-    @Override public void process(String alias, String[] args) {
-        VirtualMachineManager vmManager = Bootstrap.virtualMachineManager();
+    @Override
+    public String name() {
+        return "lsjvm";
+    }
 
-        for (Connector connector : vmManager.allConnectors()) {
-            System.out.println(connector.name() + ": " + connector.description());
+    @Override
+    public String help() {
+        return "Displays running JVM Processes";
+    }
+
+    @Override public void process(String alias, String[] args) {
+        String systemProp = System.getProperty("os.name");
+        boolean windows = systemProp.toLowerCase().contains("win");
+
+        try {
+            String[] cmd = windows ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
+                    new String[] { "ps", "-e" }; // TODO grep
+            Process ls = new ProcessBuilder().
+                    command(cmd).
+                    start();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty() || line.startsWith("CommandLine")) {
+                        continue;
+                    }
+
+                    line = line.trim();
+                    int point = line.lastIndexOf("  ");
+                    if (point > 100) {
+                        System.out.println(line.substring(point + 2, line.length()) + " - " + line.substring(0, 100) + "...  ");
+                    } else {
+                        System.out.println(line);
+                    }
+                }
+            }
+
+
+            ls.waitFor();
+            ls.destroy();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

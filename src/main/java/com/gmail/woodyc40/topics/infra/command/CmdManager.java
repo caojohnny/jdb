@@ -17,18 +17,23 @@
 package com.gmail.woodyc40.topics.infra.command;
 
 import com.google.common.collect.Maps;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class CmdManager {
     private static final String NOT_FOUND = "command not found";
     private static final Class<?>[] CMD_SIGNATURE =
             new Class[] { String.class, String[].class };
-    private final Map<String, CmdProcessor> cmdMap =
+    @Getter private static final CmdManager instance = new CmdManager();
+
+    @Getter private final Map<String, CmdProcessor> cmdMap =
             Maps.newHashMap();
 
     public void register(CmdProcessor processor) {
@@ -36,26 +41,12 @@ public class CmdManager {
         for (Method me : methods) {
             if (me.getName().equals("process") &&
                     Arrays.equals(me.getParameterTypes(), CMD_SIGNATURE)) {
-                Annotation[] annos = me.getDeclaredAnnotations();
-
-                String name = null;
-                for (Annotation annotation : annos) {
-                    if (annotation instanceof Cmd) {
-                        name = ((Cmd) annotation).name();
-                    }
-
-                    if (annotation instanceof Alias) {
-                        for (String alias : ((Alias) annotation).value()) {
-                            this.cmdMap.put(alias, processor);
-                        }
-                    }
-                }
-
-                if (name == null) {
-                    throw new IllegalStateException("jdb could not register all commands");
-                }
-
+                String name = processor.name();
                 this.cmdMap.put(name, processor);
+
+                for (String alias : processor.aliases()) {
+                    this.cmdMap.put(alias, processor);
+                }
             }
         }
     }
