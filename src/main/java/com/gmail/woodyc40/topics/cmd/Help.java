@@ -20,18 +20,15 @@ import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 
 public class Help implements CmdProcessor {
-    @Override
-    public String name() {
+    @Override public String name() {
         return "help";
     }
 
-    @Override
-    public String help() {
+    @Override public String help() {
         return "Displays helps messages for commands";
     }
 
-    @Override
-    public String[] aliases() {
+    @Override public String[] aliases() {
         return new String[] { "h" };
     }
 

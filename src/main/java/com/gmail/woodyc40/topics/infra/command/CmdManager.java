@@ -26,16 +26,38 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
 
+/**
+ * Command infrastructure management class.
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class CmdManager {
+public final class CmdManager {
+    //
+    // CONSTANTS
+    //
+    /** Command not found constant String */
     private static final String NOT_FOUND = "command not found";
+    /** Command handling method signature */
     private static final Class<?>[] CMD_SIGNATURE =
             new Class[] { String.class, String[].class };
+    /** Singleton instance of the command manager */
     @Getter private static final CmdManager instance = new CmdManager();
 
+    //
+    // Instance fields
+    //
+    /**
+     * The collection of registered commands/command
+     * aliases mapped to their respective processor
+     */
     @Getter private final Map<String, CmdProcessor> cmdMap =
             Maps.newHashMap();
 
+    /**
+     * Registers the given command processor to handle CLI
+     * input.
+     *
+     * @param processor the command processor to register
+     */
     public void register(CmdProcessor processor) {
         Method[] methods = processor.getClass().getDeclaredMethods();
         for (Method me : methods) {
@@ -51,6 +73,12 @@ public class CmdManager {
         }
     }
 
+    /**
+     * Dispatches the given command line and passes it to
+     * the command processor.
+     *
+     * @param line the line to dispatch
+     */
     public void dispatch(@NonNull String line) {
         String[] spl = line.split(" ");
 

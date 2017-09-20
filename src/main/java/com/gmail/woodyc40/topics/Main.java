@@ -16,8 +16,10 @@
  */
 package com.gmail.woodyc40.topics;
 
+import com.gmail.woodyc40.topics.cmd.Attach;
 import com.gmail.woodyc40.topics.cmd.Help;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
+import com.gmail.woodyc40.topics.cmd.SourcePath;
 import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -31,28 +33,46 @@ import java.io.PrintStream;
  * Program entry-point, handles command line input/output,
  * sets up JLine reader and registers commands.
  */
-public class Main {
-    public static void main(String[] args) throws IOException {
+public final class Main {
+    /** The terminal interface being used */
+    private static final Terminal TERM;
+    /** The terminal line reader */
+    private static final LineReader READER;
+
+    static {
+        try {
+            TERM = TerminalBuilder.
+                    builder().
+                    jansi(true).
+                    build();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        READER = LineReaderBuilder.
+                builder().
+                terminal(TERM).
+                build();
+    }
+
+    /**
+     * Main entry method.
+     */
+    public static void main(String[] args) {
         // TODO args
         // Register commands
         CmdManager manager = CmdManager.getInstance();
         manager.register(new LsJvm());
         manager.register(new Help());
+        manager.register(new SourcePath());
+        manager.register(new Attach());
 
-        Terminal terminal = TerminalBuilder.
-                builder().
-                jansi(true).
-                build();
-        LineReader reader = LineReaderBuilder.
-                builder().
-                terminal(terminal).
-                build();
-        PrintStream out = new PrintStream(terminal.output());
+        PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
 
         // CLI Handling
         while (true) {
-            String line = reader.readLine("(jdb) ");
+            String line = READER.readLine("(jdb) ");
 
             if (line == null || line.isEmpty()) {
                 continue;
@@ -64,6 +84,22 @@ public class Main {
 
             manager.dispatch(line);
             System.out.println();
+        }
+    }
+
+    /**
+     * Prompts the CLI for input and returns the entered
+     * String.
+     *
+     * @param query the query string
+     * @return the input string
+     */
+    public static String prompt(String query) {
+        while (true) {
+            String line = READER.readLine(query);
+            if (line != null && !line.isEmpty()) {
+                return line;
+            }
         }
     }
 }

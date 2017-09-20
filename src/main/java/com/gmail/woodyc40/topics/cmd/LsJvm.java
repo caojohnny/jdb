@@ -17,10 +17,12 @@
 package com.gmail.woodyc40.topics.cmd;
 
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
+import com.google.common.collect.Maps;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Map;
 
 public class LsJvm implements CmdProcessor {
     @Override
@@ -34,18 +36,39 @@ public class LsJvm implements CmdProcessor {
     }
 
     @Override public void process(String alias, String[] args) {
+        try {
+            Map<Integer, String> availablePids = getAvailablePids();
+            for (Map.Entry<Integer, String> entry : availablePids.entrySet()) {
+                System.out.println(entry.getKey() + " - " + entry.getValue());
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Obtains the available JVM PIDs running on the current
+     * system.
+     *
+     * @return a mapping of PIDs to process path
+     * @throws IOException if the system cannot be polled
+     * @throws InterruptedException if the process did not
+     * exit
+     */
+    public static Map<Integer, String> getAvailablePids() throws IOException, InterruptedException {
+        Map<Integer, String> availablePids = Maps.newHashMap();
         String systemProp = System.getProperty("os.name");
         boolean windows = systemProp.toLowerCase().contains("win");
 
-        try {
-            String[] cmd = windows ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
-                    new String[] { "ps", "-e" }; // TODO grep
-            Process ls = new ProcessBuilder().
-                    command(cmd).
-                    start();
+        String[] cmd = windows ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
+                new String[] { "ps", "-e" }; // TODO grep
+        Process ls = new ProcessBuilder().
+                command(cmd).
+                start();
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
-                String line;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
+            String line;
+            if (windows) {
                 while ((line = reader.readLine()) != null) {
                     if (line.isEmpty() || line.startsWith("CommandLine")) {
                         continue;
@@ -54,18 +77,18 @@ public class LsJvm implements CmdProcessor {
                     line = line.trim();
                     int point = line.lastIndexOf("  ");
                     if (point > 100) {
-                        System.out.println(line.substring(point + 2, line.length()) + " - " + line.substring(0, 100) + "...  ");
+                        String pid = line.substring(point + 2, line.length());
+                        availablePids.put(Integer.parseInt(pid), line.substring(0, 100) + "...  ");
                     } else {
                         System.out.println(line);
                     }
                 }
             }
-
-
-            ls.waitFor();
-            ls.destroy();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
         }
+
+
+        ls.waitFor();
+        ls.destroy();
+        return availablePids;
     }
 }
