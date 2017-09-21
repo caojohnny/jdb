@@ -61,14 +61,14 @@ public class LsJvm implements CmdProcessor {
         boolean windows = systemProp.toLowerCase().contains("win");
 
         String[] cmd = windows ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
-                new String[] { "ps", "-e" }; // TODO grep
+                new String[] { "/bin/sh", "-c", "ps -e --format pid,args | grep java" };
         Process ls = new ProcessBuilder().
                 command(cmd).
                 start();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
-            String line;
             if (windows) {
+                String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.isEmpty() || line.startsWith("CommandLine")) {
                         continue;
@@ -80,12 +80,30 @@ public class LsJvm implements CmdProcessor {
                         String pid = line.substring(point + 2, line.length());
                         availablePids.put(Integer.parseInt(pid), line.substring(0, 100) + "...  ");
                     } else {
-                        System.out.println(line);
+                        String pid = line.substring(point + 2, line.length());
+                        availablePids.put(Integer.parseInt(pid), line.substring(0, point));
+                    }
+                }
+            } else {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty() || line.contains("grep java")) {
+                        continue;
+                    }
+
+                    line = line.trim();
+                    if (line.length() > 100) {
+                        int firstSeparator = line.indexOf(' ');
+                        String pid = line.substring(0, firstSeparator);
+                        availablePids.put(Integer.parseInt(pid), line.substring(firstSeparator + 1, 100) + "...  ");
+                    } else {
+                        int firstSeparator = line.indexOf(' ');
+                        String pid = line.substring(0, firstSeparator);
+                        availablePids.put(Integer.parseInt(pid), line.substring(firstSeparator + 1));
                     }
                 }
             }
         }
-
 
         ls.waitFor();
         ls.destroy();
