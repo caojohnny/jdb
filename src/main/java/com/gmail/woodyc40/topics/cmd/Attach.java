@@ -19,6 +19,7 @@ package com.gmail.woodyc40.topics.cmd;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 
+// NOTE: Requires "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"
 public class Attach implements CmdProcessor {
     @Override
     public String name() {

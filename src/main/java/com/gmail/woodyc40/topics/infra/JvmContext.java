@@ -63,11 +63,16 @@ public final class JvmContext {
             return;
         }
 
+        if (this.currentPid == pid) {
+            System.out.println("process already attached");
+            return;
+        }
+
         if (this.currentPid > 0) {
             System.out.println();
             System.out.println("Currently attached to " + this.currentPid);
             String yn = Main.prompt("Do you really want to attach [Y/n]? ");
-            if (!yn.toLowerCase().equals("y") || !yn.toLowerCase().equals("yes")) {
+            if (!yn.toLowerCase().equals("y") && !yn.toLowerCase().equals("yes")) {
                 System.out.println("abort");
                 return;
             }
