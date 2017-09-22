@@ -20,6 +20,7 @@ import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.google.common.collect.Sets;
 import com.sun.jdi.Bootstrap;
+import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
@@ -28,6 +29,7 @@ import com.sun.tools.jdi.ProcessAttachingConnector;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -41,15 +43,20 @@ import java.util.Set;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JvmContext {
+    /** The strata String used for Location objects */
+    public static final String STRATA = "Java";
     /** The singleton instance of the JVM context */
     @Getter private static final JvmContext context = new JvmContext();
 
     /** Currently attached JVM PID */
     @Getter private int currentPid = -1;
     /** The virtual machine that is currently attached */
-    private VirtualMachine vm;
+    @Getter private VirtualMachine vm;
     /** The collection of paths leading to class sources */
     @Getter private final Set<Path> sourcePath = Sets.newHashSet();
+
+    /** The class that is currently being modified */
+    @Getter @Setter private ReferenceType currentRef;
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -121,5 +128,19 @@ public final class JvmContext {
         }
 
         System.out.println("Successfully attached to " + pid);
+    }
+
+    /**
+     * Detaches from the currently attached JVM, or fails.
+     */
+    public void detach() {
+        if (this.vm == null) {
+            System.out.println("not attached");
+            return;
+        }
+
+        this.vm.dispose();
+        this.vm = null;
+        this.currentPid = -1;
     }
 }

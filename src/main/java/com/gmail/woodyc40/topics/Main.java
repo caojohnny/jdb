@@ -16,10 +16,7 @@
  */
 package com.gmail.woodyc40.topics;
 
-import com.gmail.woodyc40.topics.cmd.Attach;
-import com.gmail.woodyc40.topics.cmd.Help;
-import com.gmail.woodyc40.topics.cmd.LsJvm;
-import com.gmail.woodyc40.topics.cmd.SourcePath;
+import com.gmail.woodyc40.topics.cmd.*;
 import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -66,6 +63,8 @@ public final class Main {
         manager.register(new Help());
         manager.register(new SourcePath());
         manager.register(new Attach());
+        manager.register(new Detach());
+        manager.register(new BreakAfter());
 
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
