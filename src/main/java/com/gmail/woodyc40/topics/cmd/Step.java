@@ -18,25 +18,32 @@ package com.gmail.woodyc40.topics.cmd;
 
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
+import com.sun.jdi.event.BreakpointEvent;
 
-public class Detach implements CmdProcessor {
+import java.util.concurrent.atomic.AtomicReference;
+
+public class Step implements CmdProcessor {
     @Override
     public String name() {
-        return "detach";
+        return "step";
     }
 
     @Override
     public String help() {
-        return "Detaches from the currently attached JVM";
+        return "Causes the thread suspended at a breakpoint to resume";
     }
 
     @Override
     public void process(String alias, String[] args) {
-        if (JvmContext.getContext().getVm() == null) {
-            System.out.println("not attached");
+        AtomicReference<BreakpointEvent> bp = JvmContext.getContext().getCurrentBreakpoint();
+        BreakpointEvent event = bp.get();
+        if (event == null) {
+            System.out.println("no breakpoint");
             return;
         }
 
-        JvmContext.getContext().detach();
+        event.thread().resume();
+        bp.set(null);
+        System.out.println("resumed thread " + event.thread().name());
     }
 }

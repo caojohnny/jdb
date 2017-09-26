@@ -19,12 +19,14 @@ package com.gmail.woodyc40.topics.infra;
 import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.google.common.collect.Sets;
-import com.sun.jdi.Bootstrap;
-import com.sun.jdi.ReferenceType;
-import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
+import com.sun.jdi.event.BreakpointEvent;
+import com.sun.jdi.event.Event;
+import com.sun.jdi.event.EventQueue;
+import com.sun.jdi.event.EventSet;
 import com.sun.tools.jdi.ProcessAttachingConnector;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -33,9 +35,9 @@ import lombok.Setter;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Holds the current state of the JVM which is being
@@ -43,8 +45,6 @@ import java.util.Set;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JvmContext {
-    /** The strata String used for Location objects */
-    public static final String STRATA = "Java";
     /** The singleton instance of the JVM context */
     @Getter private static final JvmContext context = new JvmContext();
 
@@ -52,11 +52,18 @@ public final class JvmContext {
     @Getter private int currentPid = -1;
     /** The virtual machine that is currently attached */
     @Getter private VirtualMachine vm;
+    /** The listener thread for VM breakpoints */
+    private Thread breakpointListener;
     /** The collection of paths leading to class sources */
     @Getter private final Set<Path> sourcePath = Sets.newHashSet();
 
     /** The class that is currently being modified */
     @Getter @Setter private ReferenceType currentRef;
+
+    /** The previous breakpoint frames */
+    private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    /** The current breakpoint that is active on the VM */
+    @Getter private final AtomicReference<BreakpointEvent> currentBreakpoint = new AtomicReference<>();
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -123,6 +130,46 @@ public final class JvmContext {
         arg.setValue(String.valueOf(pid));
         try {
             this.vm = pac.attach(args);
+            this.breakpointListener = new Thread(new Runnable() {
+                final EventQueue queue = JvmContext.this.vm.eventQueue();
+                @Override public void run() {
+                    while (true) {
+                        try {
+                            EventSet eventSet = this.queue.remove();
+
+                            for (Event event : eventSet) {
+                                if (event instanceof BreakpointEvent) {
+                                    BreakpointEvent e = (BreakpointEvent) event;
+
+                                    List<StackFrame> frames = new ArrayList<>();
+                                    for (int i = 0; i < Integer.MAX_VALUE; i++) {
+                                        try {
+                                            frames.add(e.thread().frame(i));
+                                        } catch (IncompatibleThreadStateException e1) {
+                                            e1.printStackTrace();
+                                        } catch (IndexOutOfBoundsException e1) {
+                                            break;
+                                        }
+                                    }
+
+                                    // TODO fix jline lol
+                                    JvmContext.this.currentBreakpoint.set(e);
+                                    System.out.println("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
+                                }
+                            }
+                        } catch (AbsentInformationException e) {
+                            throw new RuntimeException(e);
+                        } catch (VMDisconnectedException e) {
+                            JvmContext.this.breakpointListener = null;
+                            JvmContext.this.detach();
+                            break;
+                        } catch (InterruptedException e) {
+                            break;
+                        }
+                    }
+                }
+            });
+            this.breakpointListener.start();
         } catch (IOException | IllegalConnectorArgumentsException e) {
             throw new RuntimeException(e);
         }
@@ -134,13 +181,17 @@ public final class JvmContext {
      * Detaches from the currently attached JVM, or fails.
      */
     public void detach() {
-        if (this.vm == null) {
-            System.out.println("not attached");
-            return;
+        try {
+            if (this.breakpointListener != null) {
+                this.breakpointListener.interrupt();
+                this.breakpointListener.join();
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
-
         this.vm.dispose();
         this.vm = null;
+        System.out.println("Detached from " + this.currentPid);
         this.currentPid = -1;
     }
 }

@@ -52,11 +52,11 @@ public class BreakAfter implements CmdProcessor {
             parseLn = split[1];
         } else {
             type = JvmContext.getContext().getCurrentRef();
+            System.out.println("abort: no class entered");
             parseLn = args[0];
         }
 
         if (type == null) {
-            System.out.println("abort: no class for " + args[0]);
             return;
         }
 
@@ -69,6 +69,8 @@ public class BreakAfter implements CmdProcessor {
             for (Location location : type.locationsOfLine(lineNumber)) {
                 BreakpointRequest req = manager.createBreakpointRequest(location);
                 req.enable();
+
+                System.out.println("Breakpoint after " + type.name() + ":" + lineNumber);
             }
         } catch (AbsentInformationException e) {
             throw new RuntimeException(e);
