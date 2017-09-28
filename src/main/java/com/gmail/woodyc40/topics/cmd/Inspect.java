@@ -41,23 +41,30 @@ public class Inspect implements CmdProcessor {
 
     @Override
     public void process(String alias, String[] args) {
-        if (args.length == 0) {
-            try {
+        try {
+            if (args.length == 0) {
                 inspect("all");
-            } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            for (String s : args) {
-                try {
+            } else {
+                for (String s : args) {
                     inspect(s);
-                } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-                    throw new RuntimeException(e);
                 }
             }
+        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
+            throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Inspects the variables at the current breakpoint with
+     * the given scope between all, stack, and instance
+     * visible.
+     *
+     * @param scope the scope to inspect
+     * @throws IncompatibleThreadStateException not sure
+     * what this means but it shouldn't happen lol
+     * @throws AbsentInformationException if the JVM is not
+     * setup to send stack info
+     */
     private static void inspect(String scope) throws IncompatibleThreadStateException, AbsentInformationException {
         BreakpointEvent event = JvmContext.getContext().getCurrentBreakpoint().get();
         if (event == null) {
@@ -66,19 +73,26 @@ public class Inspect implements CmdProcessor {
         }
 
         // TODO
-        if (scope.equals("all")) {
-            StackFrame frame = event.thread().frame(0);
-            for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
-                System.out.println(entry.getKey().name() + " = " + entry.getValue());
-            }
-        } else if (scope.equals("stack")) {
+        switch (scope) {
+            case "all":
+                StackFrame frame = event.thread().frame(0);
+                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
+                    System.out.println(entry.getKey().name() + " = " + entry.getValue());
+                }
+                break;
+            case "stack":
 
-        } else if (scope.equals("class")) {
+                break;
+            case "class":
 
-        } else if (scope.equals("inst") || scope.equals("instance")) {
+                break;
+            case "inst":
+            case "instance":
 
-        } else {
-            System.out.println("unrecognized scope " + scope);
+                break;
+            default:
+                System.out.println("unrecognized scope " + scope);
+                break;
         }
     }
 }

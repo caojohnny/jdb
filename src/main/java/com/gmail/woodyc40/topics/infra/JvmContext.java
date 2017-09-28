@@ -27,6 +27,7 @@ import com.sun.jdi.event.BreakpointEvent;
 import com.sun.jdi.event.Event;
 import com.sun.jdi.event.EventQueue;
 import com.sun.jdi.event.EventSet;
+import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.ProcessAttachingConnector;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -64,6 +65,8 @@ public final class JvmContext {
     private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
     /** The current breakpoint that is active on the VM */
     @Getter private final AtomicReference<BreakpointEvent> currentBreakpoint = new AtomicReference<>();
+    /** Mapping of FQN:LN breakpoint info to disable breakpoints */
+    @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -151,6 +154,7 @@ public final class JvmContext {
                                             break;
                                         }
                                     }
+                                    JvmContext.this.previousFrames.add(frames);
 
                                     // TODO fix jline lol
                                     JvmContext.this.currentBreakpoint.set(e);
@@ -185,11 +189,11 @@ public final class JvmContext {
             if (this.breakpointListener != null) {
                 this.breakpointListener.interrupt();
                 this.breakpointListener.join();
+                this.vm.dispose();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-        this.vm.dispose();
         this.vm = null;
         System.out.println("Detached from " + this.currentPid);
         this.currentPid = -1;

@@ -35,7 +35,7 @@ public final class CmdManager {
     // CONSTANTS
     //
     /** Command not found constant String */
-    private static final String NOT_FOUND = "command not found";
+    private static final String NOT_FOUND = "command not found: ";
     /** Command handling method signature */
     private static final Class<?>[] CMD_SIGNATURE =
             new Class[] { String.class, String[].class };
@@ -86,7 +86,7 @@ public final class CmdManager {
             String name = spl[0];
             CmdProcessor processor = this.cmdMap.get(name);
             if (processor == null) {
-                System.out.println(NOT_FOUND);
+                System.out.println(NOT_FOUND + name);
             } else {
                 processor.process(name, new String[0]);
             }
@@ -94,7 +94,7 @@ public final class CmdManager {
             String name = spl[0];
             CmdProcessor processor = this.cmdMap.get(name);
             if (processor == null) {
-                System.out.println(NOT_FOUND);
+                System.out.println(NOT_FOUND + name);
             } else {
                 String[] args = new String[spl.length - 1];
                 System.arraycopy(spl, 1, args, 0, args.length);

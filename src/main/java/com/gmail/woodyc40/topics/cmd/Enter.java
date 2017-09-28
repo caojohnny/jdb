@@ -22,6 +22,7 @@ import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Enter implements CmdProcessor {
@@ -57,7 +58,13 @@ public class Enter implements CmdProcessor {
      */
     public static ReferenceType getReference(String name) {
         VirtualMachine vm = JvmContext.getContext().getVm();
-        List<ReferenceType> matches = vm.classesByName(name);
+        List<ReferenceType> matches = new ArrayList<>();
+        for (ReferenceType type : vm.allClasses()) {
+            if (type.name().contains(name)) {
+                matches.add(type);
+            }
+        }
+
         if (matches.isEmpty()) {
             System.out.println("abort: no class for " + name);
         } else if (matches.size() == 1) {
