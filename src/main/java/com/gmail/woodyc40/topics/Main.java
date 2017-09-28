@@ -95,6 +95,21 @@ public final class Main {
     }
 
     /**
+     * Prints an a message asynchronously without messing
+     * with the command prompt.
+     *
+     * @param line the line to print
+     */
+    public static void printAsync(String line) {
+        // TODO keep input
+        READER.callWidget(LineReader.CLEAR);
+        READER.getTerminal().writer().println(line);
+        READER.callWidget(LineReader.REDRAW_LINE);
+        READER.callWidget(LineReader.REDISPLAY);
+        READER.getTerminal().writer().flush();
+    }
+
+    /**
      * Prompts the CLI for input and returns the entered
      * String.
      *

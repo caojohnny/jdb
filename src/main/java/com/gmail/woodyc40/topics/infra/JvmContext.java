@@ -158,7 +158,7 @@ public final class JvmContext {
 
                                     // TODO fix jline lol
                                     JvmContext.this.currentBreakpoint.set(e);
-                                    System.out.println("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
+                                    Main.printAsync("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
                                 }
                             }
                         } catch (AbsentInformationException e) {
@@ -195,6 +195,8 @@ public final class JvmContext {
             throw new RuntimeException(e);
         }
         this.vm = null;
+
+        // TODO may be async
         System.out.println("Detached from " + this.currentPid);
         this.currentPid = -1;
     }
