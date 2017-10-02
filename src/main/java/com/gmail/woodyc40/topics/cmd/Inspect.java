@@ -66,7 +66,11 @@ public class Inspect implements CmdProcessor {
      * setup to send stack info
      */
     private static void inspect(String scope) throws IncompatibleThreadStateException, AbsentInformationException {
-        BreakpointEvent event = JvmContext.getContext().getCurrentBreakpoint().get();
+        BreakpointEvent event;
+        synchronized (JvmContext.getContext().getLock()) {
+            event = JvmContext.getContext().getCurrentBreakpoint();
+        }
+
         if (event == null) {
             System.out.println("no breakpoint");
             return;

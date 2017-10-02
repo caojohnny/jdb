@@ -72,7 +72,7 @@ public final class Main {
         manager.register(new ClearBreaks());
         manager.register(new Exit());
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> JvmContext.getContext().detach()));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> JvmContext.getContext().detach(true)));
 
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
@@ -101,7 +101,6 @@ public final class Main {
      * @param line the line to print
      */
     public static void printAsync(String line) {
-        // TODO keep input
         READER.callWidget(LineReader.CLEAR);
         READER.getTerminal().writer().println(line);
         READER.callWidget(LineReader.REDRAW_LINE);

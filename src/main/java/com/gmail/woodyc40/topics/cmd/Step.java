@@ -20,8 +20,6 @@ import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.sun.jdi.event.BreakpointEvent;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 public class Step implements CmdProcessor {
     @Override
     public String name() {
@@ -35,15 +33,19 @@ public class Step implements CmdProcessor {
 
     @Override
     public void process(String alias, String[] args) {
-        AtomicReference<BreakpointEvent> bp = JvmContext.getContext().getCurrentBreakpoint();
-        BreakpointEvent event = bp.get();
-        if (event == null) {
-            System.out.println("no breakpoint");
-            return;
-        }
+        BreakpointEvent bp;
+        synchronized (JvmContext.getContext().getLock()) {
+            bp = JvmContext.getContext().getCurrentBreakpoint();
+            if (bp == null) {
+                System.out.println("no breakpoint");
+                return;
+            }
 
-        event.thread().resume();
-        bp.set(null);
-        System.out.println("resumed thread " + event.thread().name());
+            JvmContext.getContext().getResumeSet().resume();
+
+            JvmContext.getContext().setCurrentBreakpoint(null);
+            JvmContext.getContext().setResumeSet(null);
+        }
+        System.out.println("resumed thread " + bp.thread().name());
     }
 }

@@ -37,6 +37,6 @@ public class Detach implements CmdProcessor {
             return;
         }
 
-        JvmContext.getContext().detach();
+        JvmContext.getContext().detach(false);
     }
 }

@@ -60,7 +60,7 @@ public class Enter implements CmdProcessor {
         VirtualMachine vm = JvmContext.getContext().getVm();
         List<ReferenceType> matches = new ArrayList<>();
         for (ReferenceType type : vm.allClasses()) {
-            if (type.name().toLowerCase().contains(name)) {
+            if (type.name().toLowerCase().contains(name.toLowerCase())) {
                 matches.add(type);
             }
         }

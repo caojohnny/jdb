@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Holds the current state of the JVM which is being
@@ -63,8 +62,12 @@ public final class JvmContext {
 
     /** The previous breakpoint frames */
     private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    /** Lock used to protect the breakpoint events */
+    @Getter private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
-    @Getter private final AtomicReference<BreakpointEvent> currentBreakpoint = new AtomicReference<>();
+    @Getter @Setter private BreakpointEvent currentBreakpoint;
+    /** The current eventSet used by the current breakpoint */
+    @Getter @Setter private EventSet resumeSet;
     /** Mapping of FQN:LN breakpoint info to disable breakpoints */
     @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
 
@@ -134,7 +137,7 @@ public final class JvmContext {
         try {
             this.vm = pac.attach(args);
             this.breakpointListener = new Thread(new Runnable() {
-                final EventQueue queue = JvmContext.this.vm.eventQueue();
+                final EventQueue queue = vm.eventQueue();
                 @Override public void run() {
                     while (true) {
                         try {
@@ -154,10 +157,12 @@ public final class JvmContext {
                                             break;
                                         }
                                     }
-                                    JvmContext.this.previousFrames.add(frames);
+                                    previousFrames.add(frames);
 
-                                    // TODO fix jline lol
-                                    JvmContext.this.currentBreakpoint.set(e);
+                                    synchronized (lock) {
+                                        currentBreakpoint = e;
+                                        resumeSet = eventSet;
+                                    }
                                     Main.printAsync("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
                                 }
                             }
@@ -165,7 +170,7 @@ public final class JvmContext {
                             throw new RuntimeException(e);
                         } catch (VMDisconnectedException e) {
                             JvmContext.this.breakpointListener = null;
-                            JvmContext.this.detach();
+                            JvmContext.this.detach(true);
                             break;
                         } catch (InterruptedException e) {
                             break;
@@ -183,8 +188,10 @@ public final class JvmContext {
 
     /**
      * Detaches from the currently attached JVM, or fails.
+     *
+     * @param async if being detached from another thread
      */
-    public void detach() {
+    public void detach(boolean async) {
         try {
             if (this.breakpointListener != null) {
                 this.breakpointListener.interrupt();
@@ -196,8 +203,11 @@ public final class JvmContext {
         }
         this.vm = null;
 
-        // TODO may be async
-        System.out.println("Detached from " + this.currentPid);
+        if (async) {
+            Main.printAsync("Detached from JVM " + this.currentPid);
+        } else {
+            System.out.println("Detached from JVM " + this.currentPid);
+        }
         this.currentPid = -1;
     }
 }
