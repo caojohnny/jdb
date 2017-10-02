@@ -81,7 +81,11 @@ public class Inspect implements CmdProcessor {
             case "all":
                 StackFrame frame = event.thread().frame(0);
                 for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
-                    System.out.println(entry.getKey().name() + " = " + entry.getValue());
+                    LocalVariable var = entry.getKey();
+                    if (entry.getValue() == null) {
+                        continue;
+                    }
+                    System.out.println(trimPackage(var.typeName()) + ' ' + var.name() + " = " + entry.getValue());
                 }
                 break;
             case "stack":
@@ -92,11 +96,21 @@ public class Inspect implements CmdProcessor {
                 break;
             case "inst":
             case "instance":
-
                 break;
             default:
                 System.out.println("unrecognized scope " + scope);
                 break;
         }
+    }
+
+    /**
+     * Removes the package from an FQN name, if it exists.
+     *
+     * @param typeName the type name to trim
+     * @return the trimmed string
+     */
+    private static String trimPackage(String typeName) {
+        int idx = typeName.lastIndexOf('.');
+        return idx > -1 ? typeName.substring(idx + 1) : typeName;
     }
 }
