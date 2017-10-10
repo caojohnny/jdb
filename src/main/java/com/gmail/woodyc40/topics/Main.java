@@ -71,6 +71,7 @@ public final class Main {
         manager.register(new Inspect());
         manager.register(new ClearBreaks());
         manager.register(new Exit());
+        manager.register(new InspectVar());
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> JvmContext.getContext().detach(true)));
 

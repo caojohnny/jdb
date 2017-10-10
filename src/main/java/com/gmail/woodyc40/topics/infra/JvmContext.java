@@ -61,7 +61,7 @@ public final class JvmContext {
     @Getter @Setter private ReferenceType currentRef;
 
     /** The previous breakpoint frames */
-    private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    @Getter private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
     /** Lock used to protect the breakpoint events */
     @Getter private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
@@ -196,11 +196,23 @@ public final class JvmContext {
             if (this.breakpointListener != null) {
                 this.breakpointListener.interrupt();
                 this.breakpointListener.join();
+
+                for (BreakpointRequest request : this.breakpoints.values()) {
+                    request.disable();
+                }
                 this.vm.dispose();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        this.sourcePath.clear();
+        this.previousFrames.clear();
+        synchronized (this.lock) {
+            this.currentBreakpoint = null;
+            this.resumeSet = null;
+        }
+        this.breakpoints.clear();
         this.vm = null;
 
         if (async) {

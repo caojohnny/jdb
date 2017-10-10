@@ -37,6 +37,11 @@ public class Enter implements CmdProcessor {
     }
 
     @Override
+    public String[] aliases() {
+        return new String[] { "e", "ent" };
+    }
+
+    @Override
     public void process(String alias, String[] args) {
         if (args.length != 1) {
             System.out.println("enter [file]");

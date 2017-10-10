@@ -76,10 +76,43 @@ public class Inspect implements CmdProcessor {
             return;
         }
 
-        // TODO
+        StackFrame frame = event.thread().frame(0);
+        if (frame == null) {
+            throw new RuntimeException("invalid frame");
+        }
+
+        Location location = frame.location();
+        ReferenceType ref = location.declaringType();
+        System.out.println("Inspect breakpoint @ " + location.method() + ':' + location.lineNumber());
+        System.out.println();
+
         switch (scope) {
+            case "a":
             case "all":
-                StackFrame frame = event.thread().frame(0);
+                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
+                    LocalVariable var = entry.getKey();
+                    if (entry.getValue() == null) {
+                        continue;
+                    }
+                    System.out.println(trimPackage(var.typeName()) + ' ' + var.name() + " = " + entry.getValue());
+                }
+
+                for (Field field : ref.allFields()) {
+                    ReferenceType type = field.declaringType();
+                    if (!field.isStatic() && !canInspectInst(frame)) {
+                        continue;
+                    }
+
+                    if (!type.equals(ref)) {
+                        System.out.println('(' + trimPackage(type.name()) + ") " + (field.isStatic() ? "static " : "") + trimPackage(field.typeName()) +
+                                ' ' + field.name() + " = " + type.getValue(field));
+                    } else {
+                        System.out.println((field.isStatic() ? "static " : "") + trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
+                    }
+                }
+                break;
+            case "s":
+            case "stack":
                 for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
                     LocalVariable var = entry.getKey();
                     if (entry.getValue() == null) {
@@ -88,14 +121,43 @@ public class Inspect implements CmdProcessor {
                     System.out.println(trimPackage(var.typeName()) + ' ' + var.name() + " = " + entry.getValue());
                 }
                 break;
-            case "stack":
-
-                break;
+            case "c":
+            case "cls":
             case "class":
+                for (Field field : ref.allFields()) {
+                    if (!field.isStatic()) {
+                        continue;
+                    }
 
+                    ReferenceType type = field.declaringType();
+                    if (!type.equals(ref)) {
+                        System.out.println('(' + trimPackage(type.name()) + ") static " + trimPackage(field.typeName()) +
+                                ' ' + field.name() + " = " + type.getValue(field));
+                    } else {
+                        System.out.println("static " + trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
+                    }
+                }
                 break;
             case "inst":
             case "instance":
+                if (!canInspectInst(frame)) {
+                    System.out.println("abort: cannot inspect instance from static context");
+                    break;
+                }
+
+                for (Field field : ref.allFields()) {
+                    if (field.isStatic()) {
+                        continue;
+                    }
+
+                    ReferenceType type = field.declaringType();
+                    if (!type.equals(ref)) {
+                        System.out.println('(' + trimPackage(type.name()) + ") " + trimPackage(field.typeName()) +
+                                ' ' + field.name() + " = " + type.getValue(field));
+                    } else {
+                        System.out.println(trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
+                    }
+                }
                 break;
             default:
                 System.out.println("unrecognized scope " + scope);
@@ -109,8 +171,21 @@ public class Inspect implements CmdProcessor {
      * @param typeName the type name to trim
      * @return the trimmed string
      */
-    private static String trimPackage(String typeName) {
+    public static String trimPackage(String typeName) {
         int idx = typeName.lastIndexOf('.');
         return idx > -1 ? typeName.substring(idx + 1) : typeName;
+    }
+
+    /**
+     * Determines whether or not a given frame can be
+     * inspected for instance variables.
+     *
+     * @param frame the frame to check
+     * @return {@code true} if instance fields can be
+     * inspected
+     */
+    public static boolean canInspectInst(StackFrame frame) {
+        Method method = frame.location().method();
+        return method != null && !method.isStatic() && !method.isStaticInitializer();
     }
 }

@@ -16,6 +16,13 @@ public class Scenario {
         scanner.nextLine();
         System.out.println("ok");
 
+        changeStack();
+
         nil.hashCode();
+    }
+
+    private static void changeStack() {
+        int a = 10;
+        System.out.println(a);
     }
 }
