@@ -62,7 +62,13 @@ public class BreakAfter implements CmdProcessor {
             return;
         }
 
-        int lineNumber = Integer.parseInt(parseLn);
+        int lineNumber;
+        try {
+            lineNumber = Integer.parseInt(parseLn);
+        } catch (NumberFormatException e) {
+            System.out.println("abort: " + parseLn + " not a number");
+            return;
+        }
 
         VirtualMachine vm = JvmContext.getContext().getVm();
         EventRequestManager manager = vm.eventRequestManager();

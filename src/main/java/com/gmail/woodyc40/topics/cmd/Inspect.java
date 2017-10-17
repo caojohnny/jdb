@@ -83,6 +83,7 @@ public class Inspect implements CmdProcessor {
 
         Location location = frame.location();
         ReferenceType ref = location.declaringType();
+        ObjectReference obj = frame.thisObject();
         System.out.println("Inspect breakpoint @ " + location.method() + ':' + location.lineNumber());
         System.out.println();
 
@@ -94,21 +95,15 @@ public class Inspect implements CmdProcessor {
                     if (entry.getValue() == null) {
                         continue;
                     }
-                    System.out.println(trimPackage(var.typeName()) + ' ' + var.name() + " = " + entry.getValue());
+                    System.out.println(inspect(var, frame));
                 }
 
                 for (Field field : ref.allFields()) {
-                    ReferenceType type = field.declaringType();
-                    if (!field.isStatic() && !canInspectInst(frame)) {
+                    if (!canInspectInst(frame)) {
                         continue;
                     }
 
-                    if (!type.equals(ref)) {
-                        System.out.println('(' + trimPackage(type.name()) + ") " + (field.isStatic() ? "static " : "") + trimPackage(field.typeName()) +
-                                ' ' + field.name() + " = " + type.getValue(field));
-                    } else {
-                        System.out.println((field.isStatic() ? "static " : "") + trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
-                    }
+                    System.out.println(inspect(field, ref, obj));
                 }
                 break;
             case "s":
@@ -118,7 +113,7 @@ public class Inspect implements CmdProcessor {
                     if (entry.getValue() == null) {
                         continue;
                     }
-                    System.out.println(trimPackage(var.typeName()) + ' ' + var.name() + " = " + entry.getValue());
+                    System.out.println(inspect(var, frame));
                 }
                 break;
             case "c":
@@ -129,13 +124,7 @@ public class Inspect implements CmdProcessor {
                         continue;
                     }
 
-                    ReferenceType type = field.declaringType();
-                    if (!type.equals(ref)) {
-                        System.out.println('(' + trimPackage(type.name()) + ") static " + trimPackage(field.typeName()) +
-                                ' ' + field.name() + " = " + type.getValue(field));
-                    } else {
-                        System.out.println("static " + trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
-                    }
+                    System.out.println(inspect(field, ref, obj));
                 }
                 break;
             case "inst":
@@ -150,13 +139,7 @@ public class Inspect implements CmdProcessor {
                         continue;
                     }
 
-                    ReferenceType type = field.declaringType();
-                    if (!type.equals(ref)) {
-                        System.out.println('(' + trimPackage(type.name()) + ") " + trimPackage(field.typeName()) +
-                                ' ' + field.name() + " = " + type.getValue(field));
-                    } else {
-                        System.out.println(trimPackage(field.typeName()) + ' ' + field.name() + " = " + ref.getValue(field));
-                    }
+                    System.out.println(inspect(field, ref, obj));
                 }
                 break;
             default:
@@ -186,6 +169,77 @@ public class Inspect implements CmdProcessor {
      */
     public static boolean canInspectInst(StackFrame frame) {
         Method method = frame.location().method();
-        return method != null && !method.isStatic() && !method.isStaticInitializer();
+        return method != null && !method.isStatic() &&
+                !method.isStaticInitializer() && frame.thisObject() != null;
+    }
+
+    /**
+     * Obtains a debug String for the given local variable.
+     *
+     * @param var the variable to debug
+     * @param frame the frame to which the variable belongs
+     * @return the formatted debug String
+     */
+    private static String inspect(LocalVariable var, StackFrame frame) {
+        return trimPackage(var.typeName()) + ' ' + var.name() + " = " + frame.getValue(var);
+    }
+
+    /**
+     * Obtains a String formatted inspect line displaying
+     * the information associated with a given field.
+     *
+     * @param field the field to inspect
+     * @param type the type containing the field
+     * @param obj the instance in question
+     * @return a formatted debug String
+     */
+    public static String inspect(Field field, ReferenceType type, ObjectReference obj) {
+        ReferenceType declaringType = field.declaringType();
+        if (declaringType.equals(type)) {
+            if (field.isStatic()) {
+                return "static " + trimPackage(field.typeName()) + ' ' + field.name() + " = " + processValue(type.getValue(field));
+            } else {
+                return trimPackage(field.typeName()) + ' ' + field.name() + " = " + processValue(obj.getValue(field));
+            }
+        } else {
+            if (field.isStatic()) {
+                return "static (" + trimPackage(declaringType.name()) + ") " + trimPackage(field.typeName()) + ' ' + field.name() + " = " + processValue(type.getValue(field));
+            } else {
+                return '(' + trimPackage(declaringType.name()) + ") " + trimPackage(field.typeName()) + ' ' + field.name() + " = " + processValue(obj.getValue(field));
+            }
+        }
+    }
+
+    public static String processValue(Value value) {
+        if (value instanceof StringReference) {
+            String str = ((StringReference) value).value();
+            StringBuilder builder = new StringBuilder();
+            builder.append('"');
+
+            for (int i = 0; i < str.length(); i++) {
+                String c = Character.toString(str.charAt(i));
+                if (c.equals("\n")) {
+                    c = "\\n";
+                } else if (c.equals("\b")) {
+                    c = "\\b";
+                } else if (c.equals("\t")) {
+                    c = "\\t";
+                } else if (c.equals("\r")) {
+                    c = "\\r";
+                } else if (c.equals("\f")) {
+                    c = "\\f";
+                } else if (c.equals("\"")) {
+                    c = "\\\"";
+                } else if (c.equals("\'")) {
+                    c = "\\\'";
+                }
+
+                builder.append(c);
+            }
+
+            return builder.append('"').toString();
+        }
+
+        return String.valueOf(value);
     }
 }

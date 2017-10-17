@@ -43,12 +43,18 @@ public class InspectVar implements CmdProcessor {
         try {
             if (args.length == 0) {
                 System.out.println("inspectvar [varname] <scope>");
-            } if (args.length == 1) {
+            } else if (args.length == 1) {
                 Var var = findVar(args[0]);
+                if (var != null) {
+                    inspect(var, "all");
+                }
             } else {
-
+                Var var = findVar(args[0]);
+                if (var != null) {
+                    inspect(var, args[1]);
+                }
             }
-        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
+        } catch (IncompatibleThreadStateException | AbsentInformationException | ClassNotLoadedException e) {
             throw new RuntimeException(e);
         }
     }
@@ -61,7 +67,7 @@ public class InspectVar implements CmdProcessor {
      * @throws IncompatibleThreadStateException probably
      * a thread that is unsuspended or something lol
      */
-    private static Var findVar(String varName) throws IncompatibleThreadStateException, AbsentInformationException {
+    private static Var findVar(String varName) throws IncompatibleThreadStateException, AbsentInformationException, ClassNotLoadedException {
         BreakpointEvent event;
         synchronized (JvmContext.getContext().getLock()) {
             event = JvmContext.getContext().getCurrentBreakpoint();
@@ -78,31 +84,62 @@ public class InspectVar implements CmdProcessor {
         }
 
         Location location = frame.location();
+        ObjectReference obj = frame.thisObject();
         ReferenceType ref = location.declaringType();
         String className = Inspect.trimPackage(ref.name());
 
         if (!varName.startsWith("this.") || !varName.startsWith(className + '.')) {
+            String var = firstVar(varName);
+            varName = varName.replace(var, "");
+
             for (LocalVariable variable : frame.visibleVariables()) {
-                if (variable.name().equals(varName)) {
-                    return new Var(frame.getValue(variable), location, frame , true);
+                if (variable.name().equals(var)) {
+                    return nextVar(Var.newVar(variable, frame), varName);
                 }
             }
+
+            for (Field field : ref.allFields()) {
+                if (field.name().equals(var)) {
+                    return nextVar(Var.newVar(obj, field, frame), varName);
+                }
+            }
+            System.out.println("No varname for " + var);
         } else {
-            varName = varName.replace("this.", "");
-            varName = varName.replace(className + '.', "");
-        }
+            varName = varName.replaceFirst("this.", "");
+            varName = varName.replaceFirst(className + '.', "");
+            String var = firstVar(varName);
+            varName = var.replaceFirst(var, "");
 
-        for (Field field : ref.allFields()) {
-            if (field.name().equals(varName)) {
-                if (field.isStatic()) {
-                    return new Var(ref.getValue(field), location, frame, false);
-                } else {
-                    return new Var(frame.thisObject().getValue(field), location, frame, false);
+            for (Field field : ref.allFields()) {
+                if (field.name().equals(var)) {
+                    return nextVar(Var.newVar(null, field, frame), varName);
                 }
             }
+            System.out.println("No varname for " + var);
         }
 
-        System.out.println("no var or field for " + varName);
+        return null;
+    }
+
+    private static Var nextVar(Var value, String varName) throws ClassNotLoadedException {
+        if (varName.isEmpty()) {
+            return value;
+        }
+
+        if (value.getType() instanceof PrimitiveType) {
+            System.out.println("Cannot inspect deeper within primitive type");
+            return null;
+        }
+
+        String var = firstVar(varName);
+        varName = var.replaceFirst(var, "");
+
+        for (Field field : ((ReferenceType) value.getType()).allFields()) {
+            if (field.name().equals(var)) {
+                return nextVar(Var.newVar((ObjectReference) value.getValue(), field, value.getFrame()), varName);
+            }
+        }
+        System.out.println("No varname for " + var);
         return null;
     }
 
@@ -111,7 +148,49 @@ public class InspectVar implements CmdProcessor {
      * the CLI.
      *
      * @param var the variable to inspect
+     * @param scope the scope to inspect the variables
      */
-    private static void inspect(Var var) {
+    private static void inspect(Var var, String scope) {
+        System.out.println("Inspecting " +
+                var.getType().name() + ' ' +
+                var.getName() + " @ " +
+                Inspect.trimPackage(var.getLocation().declaringType().name()) + ':' +
+                var.getLocation().lineNumber());
+        System.out.println();
+
+        if (var.getValue() instanceof PrimitiveValue) {
+            System.out.println(var.getName() + " = " + Inspect.processValue(var.getValue()));
+        } else {
+            ObjectReference obj = (ObjectReference) var.getValue();
+            for (Field field : obj.referenceType().allFields()) {
+                if (field.isStatic()) {
+                    if (scope.equals("inst") || scope.equals("i")) {
+                        continue;
+                    }
+                } else {
+                    if (scope.equals("class") || scope.equals("cls") || scope.equals("c")) {
+                        continue;
+                    }
+                }
+
+                System.out.println(Inspect.inspect(field, obj.referenceType(), obj));
+            }
+        }
+    }
+
+    /**
+     * Obtains the first variable name in the given name
+     * string which separates period notation.
+     *
+     * @param varName the varName to find
+     * @return the single variable name
+     */
+    private static String firstVar(String varName) {
+        int sepIdx = varName.indexOf('.');
+        if (sepIdx == -1) {
+            return varName;
+        } else {
+            return varName.substring(0, sepIdx);
+        }
     }
 }
