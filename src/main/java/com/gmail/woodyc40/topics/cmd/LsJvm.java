@@ -16,6 +16,7 @@
  */
 package com.gmail.woodyc40.topics.cmd;
 
+import com.gmail.woodyc40.topics.infra.Platform;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.google.common.collect.Maps;
 
@@ -57,17 +58,14 @@ public class LsJvm implements CmdProcessor {
      */
     public static Map<Integer, String> getAvailablePids() throws IOException, InterruptedException {
         Map<Integer, String> availablePids = Maps.newHashMap();
-        String systemProp = System.getProperty("os.name");
-        boolean windows = systemProp.toLowerCase().contains("win");
-
-        String[] cmd = windows ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
+        String[] cmd = Platform.isWindows() ? new String[] { "wmic", "process", "where", "\"name='java.exe'\"", "get", "commandline,processid" } :
                 new String[] { "/bin/sh", "-c", "ps -e --format pid,args | grep java" };
         Process ls = new ProcessBuilder().
                 command(cmd).
                 start();
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(ls.getInputStream()))) {
-            if (windows) {
+            if (Platform.isWindows()) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.isEmpty() || line.startsWith("CommandLine")) {

@@ -47,25 +47,27 @@ public class SourcePath implements CmdProcessor {
             return;
         }
 
-        Path path = Paths.get(args[0]);
-        if (!Files.exists(path)) {
-            System.out.println("no path found");
-        } else {
-            try {
-                Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-                    @Override
-                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                        Path rel = path.relativize(file);
-                        String clsName = rel.toString()
-                                .replace(".java", "")
-                                .replaceAll(Pattern.quote("\\"), ".");
-                        JvmContext.getContext().getSourcePath().put(clsName, file);
-                        return FileVisitResult.CONTINUE;
-                    }
-                });
-                System.out.println("Added " + path + " to sources");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+        for (String arg : args) {
+            Path path = Paths.get(arg);
+            if (!Files.exists(path)) {
+                System.out.println("no path found: " + arg);
+            } else {
+                try {
+                    Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+                        @Override
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                            Path rel = path.relativize(file);
+                            String clsName = rel.toString()
+                                    .replace(".java", "")
+                                    .replaceAll(Pattern.quote("\\"), ".");
+                            JvmContext.getContext().getSourcePath().put(clsName, file);
+                            return FileVisitResult.CONTINUE;
+                        }
+                    });
+                    System.out.println("Added " + path + " to sources");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
     }
