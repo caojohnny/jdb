@@ -81,6 +81,13 @@ public class BreakAfter implements CmdProcessor {
                         location.sourceName() + ':' + lineNumber, req);
 
                 System.out.println("Breakpoint after " + type.name() + ":" + lineNumber);
+                System.out.println();
+
+                String line = JvmContext.getContext().lookupLine(type.name(), lineNumber, 1);
+                if (line != null && !line.isEmpty()) {
+                    System.out.println("Code sample:");
+                    System.out.println(line);
+                }
             }
         } catch (AbsentInformationException e) {
             throw new RuntimeException(e);

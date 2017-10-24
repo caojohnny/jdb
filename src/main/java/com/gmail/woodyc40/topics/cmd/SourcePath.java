@@ -19,9 +19,10 @@ package com.gmail.woodyc40.topics.cmd;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.regex.Pattern;
 
 public class SourcePath implements CmdProcessor {
     @Override
@@ -50,7 +51,22 @@ public class SourcePath implements CmdProcessor {
         if (!Files.exists(path)) {
             System.out.println("no path found");
         } else {
-            JvmContext.getContext().getSourcePath().add(path);
+            try {
+                Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        Path rel = path.relativize(file);
+                        String clsName = rel.toString()
+                                .replace(".java", "")
+                                .replaceAll(Pattern.quote("\\"), ".");
+                        JvmContext.getContext().getSourcePath().put(clsName, file);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+                System.out.println("Added " + path + " to sources");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

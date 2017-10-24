@@ -18,7 +18,6 @@ package com.gmail.woodyc40.topics.infra;
 
 import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
-import com.google.common.collect.Sets;
 import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
@@ -34,9 +33,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -55,7 +57,8 @@ public final class JvmContext {
     /** The listener thread for VM breakpoints */
     private Thread breakpointListener;
     /** The collection of paths leading to class sources */
-    @Getter private final Set<Path> sourcePath = Sets.newHashSet();
+    @Getter private final Map<String, Path> sourcePath = new
+            ConcurrentHashMap<>();
 
     /** The class that is currently being modified */
     @Getter @Setter private ReferenceType currentRef;
@@ -164,6 +167,12 @@ public final class JvmContext {
                                         resumeSet = eventSet;
                                     }
                                     Main.printAsync("Hit breakpoint " + e.location().sourceName() + ":" + e.location().lineNumber());
+
+                                    String string = lookupLine(e.location().declaringType().name(), e.location().lineNumber(), 3);
+                                    if (string != null && !string.isEmpty()) {
+                                        System.out.println("Code context:");
+                                        System.out.println(string);
+                                    }
                                 }
                             }
                         } catch (AbsentInformationException e) {
@@ -221,5 +230,46 @@ public final class JvmContext {
             System.out.println("Detached from JVM " + this.currentPid);
         }
         this.currentPid = -1;
+    }
+
+    /**
+     * Looksup the source line with the given location
+     * information and amount of context.
+     *
+     * @param cls the class to lookup
+     * @param ln the line number to use
+     * @param context the number of lines before and after
+     * to include
+     * @return the source line
+     */
+    public String lookupLine(String cls, int ln, int context) {
+        Path path = this.sourcePath.get(cls);
+        if (path == null) {
+            return null;
+        } else {
+            try {
+                StringBuilder builder = new StringBuilder();
+                BufferedReader reader = Files.newBufferedReader(path);
+                for (int i = 1; ; i++) {
+                    String line = reader.readLine();
+                    if (i >= ln - context && i <= ln + context) {
+                        if (i == ln + context) {
+                            builder.append(line);
+                            break;
+                        }
+
+                        if (i == ln) {
+                            builder.append('>');
+                        }
+
+                        builder.append(line).append('\n');
+                    }
+                }
+
+                return builder.toString();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }
