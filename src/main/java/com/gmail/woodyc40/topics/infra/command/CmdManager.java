@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
+import javax.annotation.Nonnull;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
@@ -111,7 +112,7 @@ public final class CmdManager {
      * @param <T> the command type
      * @return the command class
      */
-    @NonNull
+    @Nonnull
     public <T extends CmdProcessor> T getCmdByType(Class<T> cls) {
         for (CmdProcessor processor : this.cmdMap.values()) {
             if (cls.isInstance(processor)) {

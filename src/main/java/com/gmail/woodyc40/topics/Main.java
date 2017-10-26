@@ -30,12 +30,47 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 /**
  * Program entry-point, handles command line input/output,
  * sets up JLine reader and registers commands.
  */
 public final class Main {
+    /**
+     * --spawnjoin [xyz.bat]
+     * -sj [xyz.bat]
+     *
+     * Spawns a process and joins, allowing for the program
+     * to exit before continuing with the debugger.
+     */
+    private static final ArgParser SPAWN_PROC_JOIN = ArgParser.newParser("spawnjoin", "sj", s -> {
+        Path path = Paths.get(s);
+        if (!Files.exists(path)) {
+            System.out.println(s + " does not point to a file");
+            return;
+        }
+
+        try {
+            System.out.print("Started process to " + s + "... ");
+            if (Platform.isWindows()) {
+                new ProcessBuilder(s).start().waitFor();
+            } else {
+                new ProcessBuilder("sh", s).start().waitFor();
+            }
+
+            System.out.println("Completed.");
+            System.out.println();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    });
+    /**
+     * --spawn [xyz.bat]
+     * -s [xyz.bat]
+     *
+     * Spawns a process before beginning the debugger
+     */
     private static final ArgParser SPAWN_PROC = ArgParser.newParser("spawn", "s", s -> {
         Path path = Paths.get(s);
         if (!Files.exists(path)) {
@@ -49,19 +84,85 @@ public final class Main {
             } else {
                 new ProcessBuilder("sh", s).start();
             }
+
+            System.out.println("Started process to " + s);
+            System.out.println();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     });
+    /**
+     * (Flag)
+     * --closeondetach
+     * -c
+     *
+     * <p>If this flag is available, then the JVM which is
+     * attached to the debugger will call exit(3) when
+     * detached rather than waiting for a new connection.
+     * </p>
+     *
+     * <p>If the JVM is started via the SPAWN_PROC* command
+     * line arguments, then it is recommended to have this
+     * flag as well.</p>
+     */
+    private static final ArgParser CLOSE_ON_DETACH = ArgParser.newFlag("closeondetach", "c",
+            JvmContext.getContext()::setCloseOnDetach);
+    /**
+     * --sourcepath [path]
+     * -sp [path]
+     *
+     * The source path(s) to add to the debugger
+     */
     private static final ArgParser SP = ArgParser.newParser("sourcepath", "sp", s -> {
         String[] paths = s.split(";");
         CmdManager.getInstance().getCmdByType(SourcePath.class).process(null, paths);
     });
-    private static final ArgParser PRINT_PROCS = ArgParser.newFlag("getprocess", "pp", flag -> {
+    /**
+     * (Flag)
+     * --getprocess
+     * -p
+     *
+     * Prints out the available process IDs when starting
+     */
+    private static final ArgParser PRINT_PROCS = ArgParser.newFlag("getprocess", "p", flag -> {
         if (flag) {
             System.out.println("Available processes:");
             CmdManager.getInstance().getCmdByType(LsJvm.class).process(null, null);
             System.out.println();
+        }
+    });
+    /**
+     * (Flag)
+     * --auto
+     * -a
+     *
+     * Enabling this flag allows the debugger to find the
+     * first (non-deterministic) JVM that supports debugging
+     * and attaches to it.
+     */
+    private static final ArgParser AUTO_ATTACH = ArgParser.newFlag("auto", "a", flag -> {
+        if (flag) {
+            try {
+                System.out.print("Attempting to attach automatically... ");
+                Map<Integer, String> pids = LsJvm.getAvailablePids();
+                for (Map.Entry<Integer, String> entry : pids.entrySet()) {
+                    if (entry.getValue().contains("-agentlib:jdwp")) {
+                        System.out.println();
+                        JvmContext.getContext().attach(entry.getKey());
+                        break;
+                    }
+                }
+
+                synchronized (JvmContext.getContext()) {
+                    if (JvmContext.getContext().getCurrentPid() == -1) {
+                        System.out.println("Failed.");
+                    }
+                }
+
+                System.out.println();
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     });
 
@@ -105,14 +206,18 @@ public final class Main {
         manager.register(new Exit());
         manager.register(new InspectVar());
 
+        SPAWN_PROC_JOIN.parse(args);
         SPAWN_PROC.parse(args);
+        CLOSE_ON_DETACH.parse(args);
         SP.parse(args);
-        PRINT_PROCS.parse(args);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> JvmContext.getContext().detach(true)));
 
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
+
+        PRINT_PROCS.parse(args);
+        AUTO_ATTACH.parse(args);
 
         // CLI Handling
         while (true) {

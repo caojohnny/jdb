@@ -74,13 +74,9 @@ public class LsJvm implements CmdProcessor {
 
                     line = line.trim();
                     int point = line.lastIndexOf("  ");
-                    if (point > 100) {
-                        String pid = line.substring(point + 2, line.length());
-                        availablePids.put(Integer.parseInt(pid), line.substring(0, 100) + "...  ");
-                    } else {
-                        String pid = line.substring(point + 2, line.length());
-                        availablePids.put(Integer.parseInt(pid), line.substring(0, point));
-                    }
+                    String pid = line.substring(point + 2, line.length());
+                    String procName = line.substring(0, 100).trim();
+                    availablePids.put(Integer.parseInt(pid), procName + (procName.length() < 100 ? "" : "..."));
                 }
             } else {
                 String line;
@@ -90,15 +86,10 @@ public class LsJvm implements CmdProcessor {
                     }
 
                     line = line.trim();
-                    if (line.length() > 100) {
-                        int firstSeparator = line.indexOf(' ');
-                        String pid = line.substring(0, firstSeparator);
-                        availablePids.put(Integer.parseInt(pid), line.substring(firstSeparator + 1, 100) + "...  ");
-                    } else {
-                        int firstSeparator = line.indexOf(' ');
-                        String pid = line.substring(0, firstSeparator);
-                        availablePids.put(Integer.parseInt(pid), line.substring(firstSeparator + 1));
-                    }
+                    int firstSeparator = line.indexOf(' ');
+                    String pid = line.substring(0, firstSeparator);
+                    String procName = line.substring(firstSeparator + 1, firstSeparator + 100).trim();
+                    availablePids.put(Integer.parseInt(pid), procName + (procName.length() < 100 ? "" : "...  "));
                 }
             }
         }

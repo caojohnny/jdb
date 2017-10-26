@@ -28,11 +28,10 @@ import com.sun.jdi.event.EventQueue;
 import com.sun.jdi.event.EventSet;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.ProcessAttachingConnector;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,22 +44,30 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Holds the current state of the JVM which is being
  * debugged, i.e. breakpoints and source paths.
  */
+@ThreadSafe
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JvmContext {
     /** The singleton instance of the JVM context */
     @Getter private static final JvmContext context = new JvmContext();
 
     /** Currently attached JVM PID */
+    @GuardedBy("this")
     @Getter private int currentPid = -1;
     /** The virtual machine that is currently attached */
+    @GuardedBy("this")
     @Getter private VirtualMachine vm;
+    /** Should the VM exit() when detached? */
+    @GuardedBy("this")
+    private boolean closeOnDetach;
     /** The listener thread for VM breakpoints */
+    @GuardedBy("this")
     private Thread breakpointListener;
     /** The collection of paths leading to class sources */
     @Getter private final Map<String, Path> sourcePath = new
             ConcurrentHashMap<>();
 
     /** The class that is currently being modified */
+    @GuardedBy("this")
     @Getter @Setter private ReferenceType currentRef;
 
     /** The previous breakpoint frames */
@@ -68,11 +75,24 @@ public final class JvmContext {
     /** Lock used to protect the breakpoint events */
     @Getter private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
+    @GuardedBy("lock")
     @Getter @Setter private BreakpointEvent currentBreakpoint;
     /** The current eventSet used by the current breakpoint */
+    @GuardedBy("lock")
     @Getter @Setter private EventSet resumeSet;
     /** Mapping of FQN:LN breakpoint info to disable breakpoints */
+    @GuardedBy("this")
     @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
+
+    /**
+     * Sets whether or not the VM should call exit() when
+     * it is detached.
+     *
+     * @param close {@code true} to exit().
+     */
+    public synchronized void setCloseOnDetach(boolean close) {
+        this.closeOnDetach = close;
+    }
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -80,7 +100,7 @@ public final class JvmContext {
      *
      * @param pid the process ID to attach
      */
-    public void attach(int pid) {
+    public synchronized void attach(int pid) {
         if (pid < 0) {
             System.out.println("failed");
             return;
@@ -170,15 +190,17 @@ public final class JvmContext {
 
                                     String string = lookupLine(e.location().declaringType().name(), e.location().lineNumber(), 3);
                                     if (string != null && !string.isEmpty()) {
-                                        System.out.println("Code context:");
-                                        System.out.println(string);
+                                        Main.printAsync("Code context:");
+                                        Main.printAsync(string);
                                     }
                                 }
                             }
                         } catch (AbsentInformationException e) {
                             throw new RuntimeException(e);
                         } catch (VMDisconnectedException e) {
-                            JvmContext.this.breakpointListener = null;
+                            synchronized (this) {
+                                breakpointListener = null;
+                            }
                             JvmContext.this.detach(true);
                             break;
                         } catch (InterruptedException e) {
@@ -200,7 +222,7 @@ public final class JvmContext {
      *
      * @param async if being detached from another thread
      */
-    public void detach(boolean async) {
+    public synchronized void detach(boolean async) {
         try {
             if (this.breakpointListener != null) {
                 this.breakpointListener.interrupt();
@@ -209,12 +231,12 @@ public final class JvmContext {
                 for (BreakpointRequest request : this.breakpoints.values()) {
                     request.disable();
                 }
-                this.vm.dispose();
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
 
+        this.currentRef = null;
         this.sourcePath.clear();
         this.previousFrames.clear();
         synchronized (this.lock) {
@@ -222,6 +244,14 @@ public final class JvmContext {
             this.resumeSet = null;
         }
         this.breakpoints.clear();
+
+        System.out.println(closeOnDetach);
+        if (this.closeOnDetach) {
+            this.vm.exit(3);
+        } else if (this.breakpointListener != null) {
+            this.breakpointListener = null;
+            this.vm.dispose();
+        }
         this.vm = null;
 
         if (async) {
