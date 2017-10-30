@@ -116,6 +116,7 @@ public final class Main {
     private static final ArgParser SP = ArgParser.newParser("sourcepath", "sp", s -> {
         String[] paths = s.split(";");
         CmdManager.getInstance().getCmdByType(SourcePath.class).process(null, paths);
+        System.out.println();
     });
     /**
      * (Flag)
@@ -211,7 +212,10 @@ public final class Main {
         CLOSE_ON_DETACH.parse(args);
         SP.parse(args);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> JvmContext.getContext().detach(true)));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Process terminating");
+            JvmContext.getContext().detach();
+        }, "Detach hook"));
 
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);

@@ -70,7 +70,7 @@ public class ArgParser {
                 if (this.alias.equals(potentialArg.substring(1))) {
                     if (this.parser == null) {
                         this.flagConsumer.accept(true);
-                        break;
+                        return;
                     } else {
                         if (i + 1 == args.length) {
                             System.out.println("Invalid arg for " + potentialArg);
