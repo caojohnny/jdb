@@ -24,6 +24,7 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.EventRequestManager;
+import org.objectweb.asm.ClassReader;
 
 public class BreakAfter implements CmdProcessor {
     @Override
@@ -80,7 +81,10 @@ public class BreakAfter implements CmdProcessor {
                 JvmContext.getContext().getBreakpoints().put(
                         location.sourceName() + ':' + lineNumber, req);
 
-                System.out.println("Breakpoint after " + type.name() + ":" + lineNumber);
+                byte[] bytecodes = req.location().method().bytecodes();
+                ClassReader reader = new ClassReader(bytecodes);
+
+                System.out.println("Breakpoint after " + type.name() + "." + location.method().name() + ":" + lineNumber);
                 System.out.println();
 
                 String line = JvmContext.getContext().lookupLine(type.name(), lineNumber, 1);

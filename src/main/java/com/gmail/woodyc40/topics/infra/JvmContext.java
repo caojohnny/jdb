@@ -17,16 +17,14 @@
 package com.gmail.woodyc40.topics.infra;
 
 import com.gmail.woodyc40.topics.Main;
+import com.gmail.woodyc40.topics.cmd.Inspect;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.google.common.collect.Maps;
 import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
-import com.sun.jdi.event.BreakpointEvent;
-import com.sun.jdi.event.Event;
-import com.sun.jdi.event.EventQueue;
-import com.sun.jdi.event.EventSet;
+import com.sun.jdi.event.*;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.ProcessAttachingConnector;
 import lombok.AccessLevel;
@@ -63,17 +61,19 @@ public final class JvmContext {
 
     /** The class that is currently being modified */
     @Getter @Setter private ReferenceType currentRef;
+    /** Mapping of FQN:LN breakpoint info to disable breakpoints */
+    @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
 
     /** The previous breakpoint frames */
     @Getter private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    @Getter private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
+
     /** Lock used to protect the breakpoint events */
     @Getter private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
     @Getter @Setter private BreakpointEvent currentBreakpoint;
     /** The current eventSet used by the current breakpoint */
     @Getter @Setter private EventSet resumeSet;
-    /** Mapping of FQN:LN breakpoint info to disable breakpoints */
-    @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -174,6 +174,13 @@ public final class JvmContext {
                                         Main.printAsync("Code context:");
                                         Main.printAsync(string);
                                     }
+                                } else if (event instanceof MethodExitEvent) {
+                                    MethodExitEvent exit = (MethodExitEvent) event;
+                                    Value value = exit.returnValue();
+
+                                    returns.add(new AbstractMap.SimpleImmutableEntry<>(exit.location(), value));
+
+                                    System.out.println(exit.location() + " = " + Inspect.processValue(value));
                                 }
                             }
                         } catch (AbsentInformationException e) {
