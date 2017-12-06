@@ -17,6 +17,7 @@ public class Scenario {
         System.out.println("ok");
 
         changeStack();
+        pop2();
 
         nil.hashCode();
     }
@@ -24,5 +25,9 @@ public class Scenario {
     private static void changeStack() {
         int a = 10;
         System.out.println(a);
+    }
+
+    private static double pop2() {
+        return 0.0;
     }
 }

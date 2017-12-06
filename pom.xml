@@ -6,6 +6,7 @@
 
     <groupId>com.gmail.woodyc40</groupId>
     <artifactId>Topics</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <build>
         <plugins>
@@ -16,6 +17,23 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <archive>
+                        <index>true</index>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                        <manifestEntries>
+                            <main>com.gmail.woodyc40.topics.Main</main>
+                        </manifestEntries>
+                    </archive>
                 </configuration>
             </plugin>
 
@@ -46,6 +64,9 @@
             </plugin>
         </plugins>
     </build>
+    <modules>
+        <module>topics-agent</module>
+    </modules>
 
     <dependencies>
         <dependency>

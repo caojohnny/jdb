@@ -32,6 +32,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,6 +45,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Holds the current state of the JVM which is being
  * debugged, i.e. breakpoints and source paths.
  */
+@NotThreadSafe
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JvmContext {
     /** The singleton instance of the JVM context */
@@ -71,8 +74,10 @@ public final class JvmContext {
     /** Lock used to protect the breakpoint events */
     @Getter private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
+    @GuardedBy("lock")
     @Getter @Setter private BreakpointEvent currentBreakpoint;
     /** The current eventSet used by the current breakpoint */
+    @GuardedBy("lock")
     @Getter @Setter private EventSet resumeSet;
 
     /**

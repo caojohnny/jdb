@@ -19,6 +19,7 @@ package com.gmail.woodyc40.topics;
 import com.gmail.woodyc40.topics.cmd.*;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.Platform;
+import com.gmail.woodyc40.topics.server.AgentServer;
 import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -166,6 +167,16 @@ public final class Main {
             }
         }
     });
+    /**
+     * (Flag)
+     * --port
+     * -p
+     *
+     * Sets the port on which to begin the agent server
+     */
+    private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "p", s -> {
+        AgentServer.BEGIN_PORT = Integer.parseInt(s);
+    });
 
     /** The terminal interface being used */
     private static final Terminal TERM;
@@ -192,6 +203,8 @@ public final class Main {
      * Main entry method.
      */
     public static void main(String[] args) {
+        AgentServer client = new AgentServer();
+
         // Register commands
         CmdManager manager = CmdManager.getInstance();
         manager.register(new LsJvm());
@@ -215,6 +228,7 @@ public final class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Process terminating");
             JvmContext.getContext().detach();
+            client.close();
         }, "Detach hook"));
 
         PrintStream out = new PrintStream(TERM.output());
@@ -222,6 +236,7 @@ public final class Main {
 
         PRINT_PROCS.parse(args);
         AUTO_ATTACH.parse(args);
+        SERVER_PORT.parse(args);
 
         // CLI Handling
         while (true) {
