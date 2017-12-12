@@ -20,12 +20,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * SCHEMA:
- * - int:pid
+ * Represents an inbound (i.e. serverbound) signal.
  */
-public class SignalInInit implements SignalIn {
-    @Override
-    public void read(DataInputStream inputStream) throws IOException {
-        int pid = inputStream.readInt();
-    }
+public interface SignalIn {
+    void read(DataInputStream in) throws IOException;
 }

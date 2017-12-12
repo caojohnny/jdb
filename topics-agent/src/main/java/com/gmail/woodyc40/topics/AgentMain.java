@@ -16,16 +16,11 @@
  */
 package com.gmail.woodyc40.topics;
 
-import java.lang.instrument.Instrumentation;
+import java.io.IOException;
+import java.net.Socket;
 
 public class AgentMain {
-    private static Instrumentation instrumentation;
-
-    public static void premain(String agentArgs, Instrumentation inst) {
-        instrumentation = inst;
-    }
-
-    public static void main(String[] args) {
-
+    public static void main(String[] args) throws IOException {
+        Socket socket = new Socket("127.0.0.1", 5000);
     }
 }

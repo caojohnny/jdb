@@ -55,12 +55,12 @@ public final class JvmContext {
     @Getter private volatile int currentPid = -1;
     /** The virtual machine that is currently attached */
     @Getter private VirtualMachine vm;
-    /** Should the VM exit() when detached? */
-    @Setter private volatile boolean closeOnDetach;
     /** The listener thread for VM breakpoints */
     private volatile Thread breakpointListener;
     /** The collection of paths leading to class sources */
     @Getter private final Map<String, Path> sourcePath = Maps.newHashMap();
+    /** Should the VM exit() when detached? */
+    @Getter @Setter public volatile boolean closeOnDetach;
 
     /** The class that is currently being modified */
     @Getter @Setter private ReferenceType currentRef;

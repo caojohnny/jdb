@@ -16,27 +16,46 @@
  */
 package com.gmail.woodyc40.topics.server;
 
-import com.gmail.woodyc40.topics.protocol.Signal;
+import com.gmail.woodyc40.topics.infra.JvmContext;
+import com.gmail.woodyc40.topics.protocol.SignalIn;
+import com.gmail.woodyc40.topics.protocol.SignalOut;
+import com.gmail.woodyc40.topics.protocol.SignalOutBusy;
+import com.gmail.woodyc40.topics.protocol.SignalOutExit;
 import com.google.common.collect.Queues;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.omg.PortableInterceptor.TRANSPORT_RETRY;
+import lombok.Setter;
 
-import java.io.DataInputStream;
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class AgentServer {
+    private static final long TIMEOUT_MS = 5000L;
+
     @Getter(AccessLevel.PRIVATE) private final ServerSocket socket;
 
-    @Getter(AccessLevel.PRIVATE) private final BlockingQueue<Socket> conn = Queues.newArrayBlockingQueue(1);
-    private final BlockingQueue<Signal> outgoing = Queues.newLinkedBlockingQueue();
-    private final BlockingQueue<Signal> incoming = Queues.newLinkedBlockingQueue();
+    @Getter
+    @Setter
+    @GuardedBy("lock")
+    private Socket curConnection;
+    @Getter
+    private final Object lock = new Object();
 
-    public AgentServer(int port) {
+    private final BlockingQueue<SignalOut> outgoing = Queues.newLinkedBlockingQueue();
+    private final BlockingQueue<SignalIn> incoming = Queues.newLinkedBlockingQueue();
+
+    private final ExecutorService bossPool;
+    private final ExecutorService workerPool;
+
+    private AgentServer(int port, ExecutorService bossPool, ExecutorService workerPool) {
+        this.bossPool = bossPool;
+        this.workerPool = workerPool;
         ServerSocket socket;
         try {
             socket = new ServerSocket(port);
@@ -48,16 +67,24 @@ public class AgentServer {
     }
 
     public static AgentServer initServer(int port) {
-        AgentServer server = new AgentServer(port);
         int bossCount = 4;
         int workerCount = 4;
         ExecutorService boss = Executors.newFixedThreadPool(4);
         ExecutorService workers = Executors.newFixedThreadPool(4);
+        AgentServer server = new AgentServer(port, boss, workers);
 
         boss.execute(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    server.getConn().add(server.getSocket().accept());
+                    Socket sock = server.getSocket().accept();
+                    synchronized (server.getLock()) {
+                        if (server.getCurConnection() == null) {
+                            server.setCurConnection(sock);
+                        } else {
+                            writeSignal(new SignalOutBusy(), sock);
+                            sock.close();
+                        }
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -66,12 +93,7 @@ public class AgentServer {
 
         for (int i = 0; i < bossCount - 3; i++) {
             boss.execute(() -> {
-                Socket sock = null;
                 while (!Thread.currentThread().isInterrupted()) {
-                    if (sock == null) {
-                        sock = server.getConn().
-                        continue;
-                    }
                 }
             });
         }
@@ -79,21 +101,37 @@ public class AgentServer {
         for (int i = 0; i < workerCount; i++) {
             workers.execute(() -> {
                 while (!Thread.currentThread().isInterrupted()) {
-
                 }
             });
         }
+
+        return server;
     }
 
     public void close() {
         try {
             this.socket.close();
-        } catch (IOException e) {
+            this.incoming.clear();
+
+            if (JvmContext.getContext().isCloseOnDetach()) {
+                this.outgoing.add(new SignalOutExit(3, "JDB Exit"));
+            } else {
+                this.outgoing.clear();
+            }
+
+            this.workerPool.shutdown();
+            this.bossPool.shutdown();
+            this.workerPool.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            this.bossPool.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void write(Signal signal) {
+    public void write(SignalOut signal) {
         this.outgoing.add(signal);
+    }
+
+    private static void writeSignal(SignalOut sig, Socket sock) {
     }
 }

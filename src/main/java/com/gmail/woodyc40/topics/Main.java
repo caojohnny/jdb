@@ -19,6 +19,7 @@ package com.gmail.woodyc40.topics;
 import com.gmail.woodyc40.topics.cmd.*;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.Platform;
+import com.gmail.woodyc40.topics.protocol.SignalRegistry;
 import com.gmail.woodyc40.topics.server.AgentServer;
 import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
@@ -167,16 +168,23 @@ public final class Main {
             }
         }
     });
+    private static int port = 5000;
     /**
-     * (Flag)
      * --port
      * -p
      *
      * Sets the port on which to begin the agent server
      */
-    private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "p", s -> {
-        AgentServer.BEGIN_PORT = Integer.parseInt(s);
-    });
+    private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "p",
+            s -> port = Integer.parseInt(s));
+    /**
+     * (Flag)
+     * --print-signals
+     * -ps
+     *
+     * Prints all the signals
+     */
+    private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> SignalRegistry.print());
 
     /** The terminal interface being used */
     private static final Terminal TERM;
@@ -203,8 +211,6 @@ public final class Main {
      * Main entry method.
      */
     public static void main(String[] args) {
-        AgentServer client = new AgentServer();
-
         // Register commands
         CmdManager manager = CmdManager.getInstance();
         manager.register(new LsJvm());
@@ -220,10 +226,14 @@ public final class Main {
         manager.register(new Exit());
         manager.register(new InspectVar());
 
+        PRINT_SIGNALS.parse(args);
         SPAWN_PROC_JOIN.parse(args);
         SPAWN_PROC.parse(args);
         CLOSE_ON_DETACH.parse(args);
         SP.parse(args);
+        SERVER_PORT.parse(args);
+
+        AgentServer client = AgentServer.initServer(port);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Process terminating");
@@ -236,7 +246,6 @@ public final class Main {
 
         PRINT_PROCS.parse(args);
         AUTO_ATTACH.parse(args);
-        SERVER_PORT.parse(args);
 
         // CLI Handling
         while (true) {

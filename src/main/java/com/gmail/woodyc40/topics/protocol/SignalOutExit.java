@@ -16,16 +16,30 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import java.io.DataInputStream;
+import com.google.common.base.Charsets;
+import lombok.RequiredArgsConstructor;
+
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
+ * Sent to the client in order to request for the JVM to
+ * exit.
+ *
  * SCHEMA:
- * - int:pid
+ * - int:exitCode
+ * - int:messageLength
+ * - byte[]:message
  */
-public class SignalInInit implements SignalIn {
+@RequiredArgsConstructor
+public class SignalOutExit implements SignalOut {
+    private final int exitCode;
+    private final String message;
+
     @Override
-    public void read(DataInputStream inputStream) throws IOException {
-        int pid = inputStream.readInt();
+    public void write(DataOutputStream out) throws IOException {
+        out.writeInt(this.exitCode);
+        out.writeInt(this.message.length());
+        out.write(this.message.getBytes(Charsets.UTF_16));
     }
 }

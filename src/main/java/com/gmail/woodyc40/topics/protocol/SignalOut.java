@@ -16,16 +16,12 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * SCHEMA:
- * - int:pid
+ * Represents an outgoing signal (i.e. client bound).
  */
-public class SignalInInit implements SignalIn {
-    @Override
-    public void read(DataInputStream inputStream) throws IOException {
-        int pid = inputStream.readInt();
-    }
+public interface SignalOut {
+    void write(DataOutputStream out) throws IOException;
 }
