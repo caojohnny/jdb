@@ -25,11 +25,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Registry of signal packets that may be sent/received from
+ * the client.
+ */
 @ThreadSafe
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SignalRegistry {
+    /** The current packet ID to be used during init */
     private static int ID_COUNTER;
+    /** Out packets */
     private static final Map<Class<? extends SignalOut>, Integer> OUT_SIGNALS = new HashMap<>();
+    /** In packets */
     private static final Map<Integer, Constructor<? extends SignalIn>> IN_SIGNALS = new HashMap<>();
 
     static {
@@ -37,6 +44,12 @@ public final class SignalRegistry {
         out(SignalOut.class);
     }
 
+    /**
+     * Initializes a new inbound packet.
+     *
+     * @param signal the signal class to add to the registry
+     * table
+     */
     private static void in(Class<? extends SignalIn> signal) {
         try {
             int id = ID_COUNTER++;
@@ -46,11 +59,23 @@ public final class SignalRegistry {
         }
     }
 
+    /**
+     * Initializes a new outbound packet.
+     *
+     * @param signal the signal to add to the registry
+     * table
+     */
     private static void out(Class<? extends SignalOut> signal) {
         int id = ID_COUNTER++;
         OUT_SIGNALS.put(signal, id);
     }
 
+    /**
+     * Decodes a signal class from the given ID.
+     *
+     * @param id the inbound ID value
+     * @return the signal wrapper
+     */
     public static SignalIn readSignal(int id) {
         Constructor<? extends SignalIn> constructor = IN_SIGNALS.get(id);
         if (constructor == null) {
@@ -64,6 +89,13 @@ public final class SignalRegistry {
         }
     }
 
+    /**
+     * Obtains an outbound signal ID based on its wrapper
+     * class.
+     *
+     * @param out the signal wrapper
+     * @return the signal ID
+     */
     public static int writeSignal(SignalOut out) {
         Integer integer = OUT_SIGNALS.get(out.getClass());
         if (integer == null) {
@@ -73,12 +105,16 @@ public final class SignalRegistry {
         return integer;
     }
 
+    /**
+     * Prints out the registry table.
+     */
     public static void print() {
         System.out.println("IN TABLE");
         IN_SIGNALS.forEach((k, v) -> System.out.println(k + ": " + v.getDeclaringClass().getSimpleName()));
-
         System.out.println();
+
         System.out.println("OUT TABLE");
         OUT_SIGNALS.forEach((k, v) -> System.out.println(v + ": " + k.getSimpleName()));
+        System.out.println();
     }
 }

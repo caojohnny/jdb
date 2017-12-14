@@ -175,7 +175,7 @@ public final class Main {
      *
      * Sets the port on which to begin the agent server
      */
-    private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "p",
+    private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "port",
             s -> port = Integer.parseInt(s));
     /**
      * (Flag)

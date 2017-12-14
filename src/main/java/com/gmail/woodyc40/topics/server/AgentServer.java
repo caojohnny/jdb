@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.server;
 
 import com.gmail.woodyc40.topics.infra.JvmContext;
-import com.gmail.woodyc40.topics.protocol.SignalIn;
 import com.gmail.woodyc40.topics.protocol.SignalOut;
 import com.gmail.woodyc40.topics.protocol.SignalOutBusy;
 import com.gmail.woodyc40.topics.protocol.SignalOutExit;
@@ -27,6 +26,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.annotation.concurrent.GuardedBy;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -34,28 +35,42 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class AgentServer {
     private static final long TIMEOUT_MS = 5000L;
 
+    private static final int WAITING_FOR_CON = 0;
+    private static final int ACTIVE = 1;
+    private static final int SHUTDOWN = 2;
+
     @Getter(AccessLevel.PRIVATE) private final ServerSocket socket;
 
     @Getter
+    private final AtomicInteger state = new AtomicInteger();
+    @Getter
     @Setter
     @GuardedBy("lock")
-    private Socket curConnection;
+    private Socket conn;
     @Getter
-    private final Object lock = new Object();
+    private final Lock lock = new ReentrantLock();
+    @Getter
+    private final Condition hasConnection = this.lock.newCondition();
+    @Getter
+    private final BlockingQueue<SignalOut> signals = Queues.newLinkedBlockingQueue();
 
-    private final BlockingQueue<SignalOut> outgoing = Queues.newLinkedBlockingQueue();
-    private final BlockingQueue<SignalIn> incoming = Queues.newLinkedBlockingQueue();
+    private final ExecutorService ioThreads;
+    @Getter
+    private final Thread handler;
 
-    private final ExecutorService bossPool;
-    private final ExecutorService workerPool;
-
-    private AgentServer(int port, ExecutorService bossPool, ExecutorService workerPool) {
-        this.bossPool = bossPool;
-        this.workerPool = workerPool;
+    private AgentServer(int port, ExecutorService ioThreads, Thread handler) {
+        this.ioThreads = ioThreads;
+        this.handler = handler;
         ServerSocket socket;
         try {
             socket = new ServerSocket(port);
@@ -67,69 +82,87 @@ public class AgentServer {
     }
 
     public static AgentServer initServer(int port) {
-        int bossCount = 4;
-        int workerCount = 4;
-        ExecutorService boss = Executors.newFixedThreadPool(4);
-        ExecutorService workers = Executors.newFixedThreadPool(4);
-        AgentServer server = new AgentServer(port, boss, workers);
+        ExecutorService ioThreads = Executors.newFixedThreadPool(3);
+        AtomicReference<Thread> ref = new AtomicReference<>();
+        ioThreads.execute(() -> {
+            ref.set(Thread.currentThread());
 
-        boss.execute(() -> {
+            // TODO: Condition
+            while (true) {
+                LockSupport.park();
+            }
+        });
+        AgentServer server = new AgentServer(port, ioThreads, ref.get());
+
+
+        ioThreads.execute(() -> {
             while (!Thread.currentThread().isInterrupted()) {
+                server.getLock().lock();
                 try {
-                    Socket sock = server.getSocket().accept();
-                    synchronized (server.getLock()) {
-                        if (server.getCurConnection() == null) {
-                            server.setCurConnection(sock);
-                        } else {
-                            writeSignal(new SignalOutBusy(), sock);
-                            sock.close();
-                        }
+                    while (server.getState().get() != ACTIVE) {
+                        server.getHasConnection().await();
+                    }
+
+                    Socket sock = server.getConn();
+                    DataInputStream in = new DataInputStream(sock.getInputStream());
+                    DataOutputStream out = new DataOutputStream(sock.getOutputStream());
+                    while (!sock.isClosed() && sock.isConnected()) {
+                        SignalOut sig = server.getSignals().take();
+                        LockSupport.unpark(server.getHandler());
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                    break;
                 }
             }
         });
 
-        for (int i = 0; i < bossCount - 3; i++) {
-            boss.execute(() -> {
-                while (!Thread.currentThread().isInterrupted()) {
+        ioThreads.execute(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Socket socket = server.getSocket().accept();
+                    if (server.getState().compareAndSet(WAITING_FOR_CON, ACTIVE)) {
+                        server.getLock().lock();
+                        try {
+                            server.setConn(socket);
+                            server.getHasConnection().signal();
+                        } finally {
+                            server.getLock().unlock();
+                        }
+                    } else {
+                        writeSignal(new SignalOutBusy(), socket);
+                        socket.close();
+                    }
+                } catch (IOException e) {
+                    break;
                 }
-            });
-        }
-
-        for (int i = 0; i < workerCount; i++) {
-            workers.execute(() -> {
-                while (!Thread.currentThread().isInterrupted()) {
-                }
-            });
-        }
+            }
+        });
 
         return server;
     }
 
     public void close() {
+        this.state.set(SHUTDOWN);
         try {
             this.socket.close();
-            this.incoming.clear();
+            this.signals.clear();
 
             if (JvmContext.getContext().isCloseOnDetach()) {
-                this.outgoing.add(new SignalOutExit(3, "JDB Exit"));
-            } else {
-                this.outgoing.clear();
+                this.signals.add(new SignalOutExit(3, "JDB Exit"));
             }
 
-            this.workerPool.shutdown();
-            this.bossPool.shutdown();
-            this.workerPool.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            this.bossPool.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            this.ioThreads.shutdown();
+            this.ioThreads.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
 
     public void write(SignalOut signal) {
-        this.outgoing.add(signal);
+        this.signals.add(signal);
+        LockSupport.unpark(this.handler);
     }
 
     private static void writeSignal(SignalOut sig, Socket sock) {
