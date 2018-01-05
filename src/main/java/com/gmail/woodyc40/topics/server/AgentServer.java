@@ -17,20 +17,19 @@
 package com.gmail.woodyc40.topics.server;
 
 import com.gmail.woodyc40.topics.infra.JvmContext;
-import com.gmail.woodyc40.topics.protocol.SignalOut;
-import com.gmail.woodyc40.topics.protocol.SignalOutBusy;
-import com.gmail.woodyc40.topics.protocol.SignalOutExit;
+import com.gmail.woodyc40.topics.protocol.*;
 import com.google.common.collect.Queues;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.annotation.concurrent.GuardedBy;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,102 +38,178 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * The local server handler
+ */
 public class AgentServer {
+    /** The timeout for the server to shutdown */
     private static final long TIMEOUT_MS = 5000L;
 
+    /** Currently waiting for connection */
     private static final int WAITING_FOR_CON = 0;
+    /** Currently connected */
     private static final int ACTIVE = 1;
+    /** Shutting down */
     private static final int SHUTDOWN = 2;
 
-    @Getter(AccessLevel.PRIVATE) private final ServerSocket socket;
+    /** The server that has been started */
+    @Getter(AccessLevel.PRIVATE) private final ServerSocketChannel server;
 
+    /** The current state of the server */
     @Getter
     private final AtomicInteger state = new AtomicInteger();
+    /** The current client */
     @Getter
     @Setter
     @GuardedBy("lock")
-    private Socket conn;
+    private SocketChannel conn;
+    /** Lock used to protect the connection */
     @Getter
     private final Lock lock = new ReentrantLock();
+    /** Condition used to notify of a connection */
     @Getter
     private final Condition hasConnection = this.lock.newCondition();
-    @Getter
-    private final BlockingQueue<SignalOut> signals = Queues.newLinkedBlockingQueue();
 
+    /** The signal send queue */
+    @Getter
+    private final BlockingQueue<SignalOut> out = Queues.newLinkedBlockingQueue();
+    @Getter
+    private final Queue<OutDataWrapper> outgoing = Queues.newConcurrentLinkedQueue();
+    /** The signal process queue */
+    @Getter
+    private final BlockingQueue<InDataWrapper> incoming = Queues.newLinkedBlockingQueue();
+
+    /** The threads used for Net IO */
     private final ExecutorService ioThreads;
-    @Getter
-    private final Thread handler;
 
-    private AgentServer(int port, ExecutorService ioThreads, Thread handler) {
+    private AgentServer(int port, ExecutorService ioThreads) {
         this.ioThreads = ioThreads;
-        this.handler = handler;
-        ServerSocket socket;
         try {
-            socket = new ServerSocket(port);
+            this.server = ServerSocketChannel.open();
+            this.server.bind(new InetSocketAddress(port));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        this.socket = socket;
     }
 
     public static AgentServer initServer(int port) {
-        ExecutorService ioThreads = Executors.newFixedThreadPool(3);
-        AtomicReference<Thread> ref = new AtomicReference<>();
+        ExecutorService ioThreads = Executors.newFixedThreadPool(4);
+        AgentServer server = new AgentServer(port, ioThreads);
+        AtomicReference<Thread> duplex = new AtomicReference<>();
+
+        // Socket duplex
         ioThreads.execute(() -> {
-            ref.set(Thread.currentThread());
+            duplex.set(Thread.currentThread());
 
-            // TODO: Condition
-            while (true) {
-                LockSupport.park();
-            }
-        });
-        AgentServer server = new AgentServer(port, ioThreads, ref.get());
-
-
-        ioThreads.execute(() -> {
             while (!Thread.currentThread().isInterrupted()) {
-                server.getLock().lock();
                 try {
-                    while (server.getState().get() != ACTIVE) {
-                        server.getHasConnection().await();
-                    }
+                    server.getLock().lockInterruptibly();
+                    try {
+                        while (server.getState().get() != ACTIVE) {
+                            server.getHasConnection().await();
+                        }
 
-                    Socket sock = server.getConn();
-                    DataInputStream in = new DataInputStream(sock.getInputStream());
-                    DataOutputStream out = new DataOutputStream(sock.getOutputStream());
-                    while (!sock.isClosed() && sock.isConnected()) {
-                        SignalOut sig = server.getSignals().take();
-                        LockSupport.unpark(server.getHandler());
+                        SocketChannel sock = server.getConn();
+                        SocketInterruptUtil.prepare(sock);
+
+                        ByteArrayOutputStream accumulator = new ByteArrayOutputStream();
+                        ByteBuffer header = ByteBuffer.allocate(4); // DIS = 4 byte int size
+                        ByteBuffer payload = ByteBuffer.allocate(1024);
+                        while (true) {
+                            try {
+                                if (sock.read(header) == 0) {
+                                       
+                                }
+                            } catch (SocketInterruptUtil.Signal signal) {
+                                OutDataWrapper out;
+                                while ((out = server.getOutgoing().poll()) != null) {
+                                    ByteBuffer buf = out.getData();
+
+                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                    DataOutputStream dos = new DataOutputStream(baos);
+                                    dos.write(buf.limit() + 4);
+                                    dos.write(out.getId());
+
+                                    sock.write(ByteBuffer.wrap(baos.toByteArray()));
+                                    sock.write(buf);
+                                }
+
+                                Thread.interrupted();
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        break;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } catch (SocketInterruptUtil.Signal signal) {
+                        Thread.interrupted();
+                    } finally {
+                        server.getLock().unlock();
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
                 } catch (InterruptedException e) {
                     break;
                 }
             }
         });
 
+        // Write processor
+        ioThreads.execute(() -> {
+            while (true) {
+                try {
+                    SignalOut take = server.getOut().take();
+
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    DataOutputStream dos = new DataOutputStream(out);
+                    take.write(dos);
+
+                    ByteBuffer buffer = ByteBuffer.wrap(out.toByteArray());
+                    OutDataWrapper wrapper = new OutDataWrapper(buffer, SignalRegistry.writeSignal(take));
+
+                    server.getOutgoing().add(wrapper);
+                    SocketInterruptUtil.signal(duplex.get());
+                } catch (InterruptedException e) {
+                    break;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        // Read processor
+        ioThreads.execute(() -> {
+            while (true) {
+                try {
+                    InDataWrapper data = server.getIncoming().take();
+                    SignalIn signal = SignalRegistry.readSignal(data.getId());
+                    signal.read(new DataInputStream(new ByteArrayInputStream(data.getData())));
+                } catch (InterruptedException e) {
+                    break;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        // Socket listener
         ioThreads.execute(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    Socket socket = server.getSocket().accept();
+                    SocketChannel ch = server.getServer().accept();
                     if (server.getState().compareAndSet(WAITING_FOR_CON, ACTIVE)) {
-                        server.getLock().lock();
+                        server.getLock().lockInterruptibly();
                         try {
-                            server.setConn(socket);
-                            server.getHasConnection().signal();
+                            server.setConn(ch);
+                            server.getHasConnection().signalAll();
                         } finally {
                             server.getLock().unlock();
                         }
                     } else {
-                        writeSignal(new SignalOutBusy(), socket);
-                        socket.close();
+                        writeSignal(new SignalOutBusy(), ch);
+                        ch.close();
                     }
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                     break;
                 }
             }
@@ -146,11 +221,11 @@ public class AgentServer {
     public void close() {
         this.state.set(SHUTDOWN);
         try {
-            this.socket.close();
-            this.signals.clear();
+            this.server.close();
+            this.outgoing.clear();
 
             if (JvmContext.getContext().isCloseOnDetach()) {
-                this.signals.add(new SignalOutExit(3, "JDB Exit"));
+                this.out.add(new SignalOutExit(3, "JDB Exit"));
             }
 
             this.ioThreads.shutdown();
@@ -161,10 +236,9 @@ public class AgentServer {
     }
 
     public void write(SignalOut signal) {
-        this.signals.add(signal);
-        LockSupport.unpark(this.handler);
+        this.out.add(signal);
     }
 
-    private static void writeSignal(SignalOut sig, Socket sock) {
+    private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
     }
 }
