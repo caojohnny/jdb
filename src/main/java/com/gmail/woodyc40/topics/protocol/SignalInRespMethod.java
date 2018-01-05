@@ -16,16 +16,19 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import lombok.Data;
+import java.io.DataInputStream;
+import java.io.IOException;
 
-import javax.annotation.concurrent.Immutable;
-
-/**
- * Wrapper for the raw input of a packet.
+/*
+ * Schema:
+ * int:size
+ * byte[] data
  */
-@Data
-@Immutable
-public class InDataWrapper {
-    private final byte[] data;
-    private final int id;
+public class SignalInRespMethod implements SignalIn {
+    @Override
+    public void read(DataInputStream in) throws IOException {
+        int size = in.readInt();
+        byte[] data = new byte[size];
+        in.read(data);
+    }
 }

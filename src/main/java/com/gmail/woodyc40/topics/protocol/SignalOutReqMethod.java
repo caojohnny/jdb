@@ -16,16 +16,19 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import lombok.Data;
+import java.io.DataOutputStream;
+import java.io.IOException;
 
-import javax.annotation.concurrent.Immutable;
-
-/**
- * Wrapper for the raw input of a packet.
+/*
+ * Schema:
+ * int:stringLen
+ * byte[]:stringData
  */
-@Data
-@Immutable
-public class InDataWrapper {
-    private final byte[] data;
-    private final int id;
+public class SignalOutReqMethod implements SignalOut {
+    public SignalOutReqMethod() {
+    }
+
+    @Override
+    public void write(DataOutputStream out) throws IOException {
+    }
 }

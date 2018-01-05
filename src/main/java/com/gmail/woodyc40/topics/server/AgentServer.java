@@ -107,7 +107,7 @@ public class AgentServer {
                 try {
                     server.getLock().lockInterruptibly();
                     try {
-                        while (server.getState().get() != ACTIVE) {
+                        while (server.getState().get() != AgentServer.ACTIVE) {
                             server.getHasConnection().await();
                         }
 
@@ -117,10 +117,38 @@ public class AgentServer {
                         ByteArrayOutputStream accumulator = new ByteArrayOutputStream();
                         ByteBuffer header = ByteBuffer.allocate(4); // DIS = 4 byte int size
                         ByteBuffer payload = ByteBuffer.allocate(1024);
+                        int payloadLen = -1;
                         while (true) {
                             try {
                                 if (sock.read(header) == 0) {
-                                       
+                                    header.flip();
+                                    payloadLen = (header.getInt() << 24) +
+                                            (header.getInt() << 16) +
+                                            (header.getInt() << 8) +
+                                            header.getInt();
+                                }
+
+                                if (payloadLen != -1) {
+                                    int len;
+                                    while ((len = sock.read(payload)) > 0) {
+                                        int accumulate = Math.min(accumulator.size() - payloadLen, len);
+
+                                        payload.flip();
+                                        accumulator.write(payload.array(), 0, accumulate);
+                                        payload.reset();
+                                    }
+                                }
+
+                                if (accumulator.size() == payloadLen) {
+                                    ByteArrayInputStream in = new ByteArrayInputStream(accumulator.toByteArray());
+                                    DataInputStream stream = new DataInputStream(in);
+                                    int id = stream.readInt();
+                                    byte[] bs = new byte[payloadLen - 1];
+                                    InDataWrapper wrapper = new InDataWrapper(bs, id);
+                                    server.getIncoming().add(wrapper);
+
+                                    payloadLen = -1;
+                                    header.reset();
                                 }
                             } catch (SocketInterruptUtil.Signal signal) {
                                 OutDataWrapper out;
@@ -197,7 +225,7 @@ public class AgentServer {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     SocketChannel ch = server.getServer().accept();
-                    if (server.getState().compareAndSet(WAITING_FOR_CON, ACTIVE)) {
+                    if (server.getState().compareAndSet(AgentServer.WAITING_FOR_CON, AgentServer.ACTIVE)) {
                         server.getLock().lockInterruptibly();
                         try {
                             server.setConn(ch);
@@ -206,7 +234,7 @@ public class AgentServer {
                             server.getLock().unlock();
                         }
                     } else {
-                        writeSignal(new SignalOutBusy(), ch);
+                        AgentServer.writeSignal(new SignalOutBusy(), ch);
                         ch.close();
                     }
                 } catch (IOException | InterruptedException e) {
@@ -219,7 +247,7 @@ public class AgentServer {
     }
 
     public void close() {
-        this.state.set(SHUTDOWN);
+        this.state.set(AgentServer.SHUTDOWN);
         try {
             this.server.close();
             this.outgoing.clear();
@@ -229,7 +257,7 @@ public class AgentServer {
             }
 
             this.ioThreads.shutdown();
-            this.ioThreads.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            this.ioThreads.awaitTermination(AgentServer.TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -240,5 +268,19 @@ public class AgentServer {
     }
 
     private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
+        int id = SignalRegistry.writeSignal(sig);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        DataOutputStream stream = new DataOutputStream(out);
+        sig.write(stream);
+
+        int size = out.size() + 4;
+
+        ByteBuffer buf = ByteBuffer.allocate(size + 4);
+        buf.putInt(size);
+        buf.putInt(id);
+        buf.put(out.toByteArray());
+
+        ch.write(buf);
     }
 }
