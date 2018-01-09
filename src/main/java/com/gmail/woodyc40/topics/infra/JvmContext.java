@@ -49,36 +49,52 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class JvmContext {
     /** The singleton instance of the JVM context */
-    @Getter private static final JvmContext context = new JvmContext();
+    @Getter
+    private static final JvmContext context = new JvmContext();
 
     /** Currently attached JVM PID */
-    @Getter private volatile int currentPid = -1;
+    @Getter
+    private volatile int currentPid = -1;
     /** The virtual machine that is currently attached */
-    @Getter private VirtualMachine vm;
+    @Getter
+    private VirtualMachine vm;
     /** The listener thread for VM breakpoints */
     private volatile Thread breakpointListener;
     /** The collection of paths leading to class sources */
-    @Getter private final Map<String, Path> sourcePath = Maps.newHashMap();
+    @Getter
+    private final Map<String, Path> sourcePath = Maps.newHashMap();
     /** Should the VM exit() when detached? */
-    @Getter @Setter public volatile boolean closeOnDetach;
+    @Getter
+    @Setter
+    public volatile boolean closeOnDetach;
 
     /** The class that is currently being modified */
-    @Getter @Setter private ReferenceType currentRef;
+    @Getter
+    @Setter
+    private ReferenceType currentRef;
     /** Mapping of FQN:LN breakpoint info to disable breakpoints */
-    @Getter private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
+    @Getter
+    private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
 
     /** The previous breakpoint frames */
-    @Getter private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
-    @Getter private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
+    @Getter
+    private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    @Getter
+    private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
 
     /** Lock used to protect the breakpoint events */
-    @Getter private final Object lock = new Object();
+    @Getter
+    private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
     @GuardedBy("lock")
-    @Getter @Setter private BreakpointEvent currentBreakpoint;
+    @Getter
+    @Setter
+    private BreakpointEvent currentBreakpoint;
     /** The current eventSet used by the current breakpoint */
     @GuardedBy("lock")
-    @Getter @Setter private EventSet resumeSet;
+    @Getter
+    @Setter
+    private EventSet resumeSet;
 
     /**
      * Sets the current JVM context to that of a JVM running
@@ -147,7 +163,9 @@ public final class JvmContext {
             this.vm = pac.attach(args);
             this.breakpointListener = new Thread(new Runnable() {
                 final EventQueue queue = vm.eventQueue();
-                @Override public void run() {
+
+                @Override
+                public void run() {
                     while (!Thread.currentThread().isInterrupted()) {
                         try {
                             EventSet eventSet = this.queue.remove();

@@ -41,7 +41,8 @@ public final class CmdManager {
     private static final Class<?>[] CMD_SIGNATURE =
             new Class[] { String.class, String[].class };
     /** Singleton instance of the command manager */
-    @Getter private static final CmdManager instance = new CmdManager();
+    @Getter
+    private static final CmdManager instance = new CmdManager();
 
     //
     // Instance fields
@@ -50,7 +51,8 @@ public final class CmdManager {
      * The collection of registered commands/command
      * aliases mapped to their respective processor
      */
-    @Getter private final Map<String, CmdProcessor> cmdMap =
+    @Getter
+    private final Map<String, CmdProcessor> cmdMap =
             Maps.newHashMap();
 
     /**

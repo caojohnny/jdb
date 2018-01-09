@@ -112,7 +112,7 @@ public class ClearBreaks implements CmdProcessor {
     private static void clearBreaks(Function<BreakpointRequest, Boolean> filter) {
         Map<String, BreakpointRequest> breakpoints = JvmContext.getContext().getBreakpoints();
         for (Iterator<Map.Entry<String, BreakpointRequest>> it = breakpoints.entrySet().iterator();
-                it.hasNext(); ) {
+             it.hasNext(); ) {
             Map.Entry<String, BreakpointRequest> next = it.next();
             if (filter.apply(next.getValue())) {
                 next.getValue().disable();

@@ -36,7 +36,8 @@ public class LsJvm implements CmdProcessor {
         return "Displays running JVM Processes";
     }
 
-    @Override public void process(String alias, String[] args) {
+    @Override
+    public void process(String alias, String[] args) {
         try {
             Map<Integer, String> availablePids = getAvailablePids();
             for (Map.Entry<Integer, String> entry : availablePids.entrySet()) {

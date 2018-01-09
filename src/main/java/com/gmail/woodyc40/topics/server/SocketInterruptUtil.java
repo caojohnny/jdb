@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package com.gmail.woodyc40.topics.server;
+
 import sun.nio.ch.Interruptible;
 
 import java.lang.reflect.Field;
@@ -25,14 +26,12 @@ import java.nio.channels.SocketChannel;
  * order to override the default behavior and allow for I/O
  * threads to capture {@link Signal}s passed while waiting
  * for input.
- *
  * <p>Be aware that this is an extremely egregious hack.
  * For the most part, it is a toy. I don't expect that
  * anyone would seriously consider using this in production,
  * but if there is any case where that occurs, I am not
  * responsible for what happens. Use at your own risk. You
  * have been warned.</p>
- *
  * <p>To add further to the risks associated with this
  * class, one must <strong>NEVER</strong> call {@link
  * Thread#interrupt()} on an I/O thread. Doing so may

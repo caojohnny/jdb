@@ -42,7 +42,6 @@ public final class Main {
     /**
      * --spawnjoin [xyz.bat]
      * -sj [xyz.bat]
-     *
      * Spawns a process and joins, allowing for the program
      * to exit before continuing with the debugger.
      */
@@ -70,7 +69,6 @@ public final class Main {
     /**
      * --spawn [xyz.bat]
      * -s [xyz.bat]
-     *
      * Spawns a process before beginning the debugger
      */
     private static final ArgParser SPAWN_PROC = ArgParser.newParser("spawn", "s", s -> {
@@ -97,12 +95,10 @@ public final class Main {
      * (Flag)
      * --closeondetach
      * -c
-     *
      * <p>If this flag is available, then the JVM which is
      * attached to the debugger will call exit(3) when
      * detached rather than waiting for a new connection.
      * </p>
-     *
      * <p>If the JVM is started via the SPAWN_PROC* command
      * line arguments, then it is recommended to have this
      * flag as well.</p>
@@ -112,7 +108,6 @@ public final class Main {
     /**
      * --sourcepath [path]
      * -sp [path]
-     *
      * The source path(s) to add to the debugger
      */
     private static final ArgParser SP = ArgParser.newParser("sourcepath", "sp", s -> {
@@ -124,7 +119,6 @@ public final class Main {
      * (Flag)
      * --getprocess
      * -p
-     *
      * Prints out the available process IDs when starting
      */
     private static final ArgParser PRINT_PROCS = ArgParser.newFlag("getprocess", "p", flag -> {
@@ -138,7 +132,6 @@ public final class Main {
      * (Flag)
      * --auto
      * -a
-     *
      * Enabling this flag allows the debugger to find the
      * first (non-deterministic) JVM that supports debugging
      * and attaches to it.
@@ -172,7 +165,6 @@ public final class Main {
     /**
      * --port
      * -p
-     *
      * Sets the port on which to begin the agent server
      */
     private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "port",
@@ -181,7 +173,6 @@ public final class Main {
      * (Flag)
      * --print-signals
      * -ps
-     *
      * Prints all the signals
      */
     private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> SignalRegistry.print());

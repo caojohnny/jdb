@@ -21,11 +21,16 @@
                     <archive>
                         <index>true</index>
                         <manifest>
-                            <addClasspath>true</addClasspath>
+                            <addClasspath>true
+                            </addClasspath>
                         </manifest>
                         <manifestEntries>
-                            <premain>com.gmail.woodyc40.topics.AgentMain</premain>
-                            <main>com.gmail.woodyc40.topics.AgentMain</main>
+                            <premain>
+                                com.gmail.woodyc40.topics.AgentMain
+                            </premain>
+                            <main>
+                                com.gmail.woodyc40.topics.AgentMain
+                            </main>
                         </manifestEntries>
                     </archive>
                 </configuration>

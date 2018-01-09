@@ -22,7 +22,6 @@ import java.io.IOException;
 /**
  * Sent to the client whenever the server is not able to
  * handle a request to connect.
- *
  * SCHEMA:
  * Empty
  */

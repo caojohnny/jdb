@@ -28,10 +28,13 @@
                     <archive>
                         <index>true</index>
                         <manifest>
-                            <addClasspath>true</addClasspath>
+                            <addClasspath>true
+                            </addClasspath>
                         </manifest>
                         <manifestEntries>
-                            <main>com.gmail.woodyc40.topics.Main</main>
+                            <main>
+                                com.gmail.woodyc40.topics.Main
+                            </main>
                         </manifestEntries>
                     </archive>
                 </configuration>
@@ -39,7 +42,8 @@
 
             <plugin>
                 <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
+                <artifactId>license-maven-plugin
+                </artifactId>
                 <version>3.0</version>
                 <executions>
                     <execution>
@@ -48,7 +52,8 @@
                             <goal>format</goal>
                         </goals>
                         <configuration>
-                            <header>./LICENSEHEADER.txt</header>
+                            <header>./LICENSEHEADER.txt
+                            </header>
                             <mapping>
                                 <java>SLASHSTAR_STYLE</java>
                             </mapping>
@@ -56,7 +61,8 @@
                                 <keyword>license</keyword>
                             </keywords>
                             <includes>
-                                <include>src/main/java/**</include>
+                                <include>src/main/java/**
+                                </include>
                             </includes>
                         </configuration>
                     </execution>

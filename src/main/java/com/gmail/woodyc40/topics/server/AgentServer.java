@@ -55,7 +55,8 @@ public class AgentServer {
     private static final int SHUTDOWN = 2;
 
     /** The server that has been started */
-    @Getter(AccessLevel.PRIVATE) private final ServerSocketChannel server;
+    @Getter(AccessLevel.PRIVATE)
+    private final ServerSocketChannel server;
 
     /** The current state of the server */
     @Getter
