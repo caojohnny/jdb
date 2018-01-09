@@ -103,8 +103,8 @@ public final class Main {
      * line arguments, then it is recommended to have this
      * flag as well.</p>
      */
-    private static final ArgParser CLOSE_ON_DETACH = ArgParser.newFlag("closeondetach", "c",
-            JvmContext.getContext()::setCloseOnDetach);
+    // private static final ArgParser CLOSE_ON_DETACH = ArgParser.newFlag("closeondetach", "c",
+    //        JvmContext.getContext()::setCloseOnDetach);
     /**
      * --sourcepath [path]
      * -sp [path]
@@ -220,11 +220,11 @@ public final class Main {
         PRINT_SIGNALS.parse(args);
         SPAWN_PROC_JOIN.parse(args);
         SPAWN_PROC.parse(args);
-        CLOSE_ON_DETACH.parse(args);
         SP.parse(args);
         SERVER_PORT.parse(args);
 
         AgentServer client = AgentServer.initServer(port);
+        JvmContext.init(client);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Process terminating");
@@ -235,6 +235,7 @@ public final class Main {
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
 
+        // CLOSE_ON_DETACH.parse(args);
         PRINT_PROCS.parse(args);
         AUTO_ATTACH.parse(args);
 

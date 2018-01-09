@@ -16,19 +16,42 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
+import com.google.common.base.Charsets;
+import lombok.RequiredArgsConstructor;
+
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.List;
 
 /*
  * Schema:
- * int:stringLen
- * byte[]:stringData
+ * cls/mename
+ *   int:stringLen
+ *   byte[]:stringData
+ * args
+ *   int:len
+ *     int:stringLen
+ *     byte[]:stringData
  */
+@RequiredArgsConstructor
 public class SignalOutReqMethod implements SignalOut {
-    public SignalOutReqMethod() {
-    }
+    private final String cls;
+    private final String mename;
+    private final List<String> args;
 
     @Override
     public void write(DataOutputStream out) throws IOException {
+        writeString(out, this.cls);
+        writeString(out, this.mename);
+
+        out.writeInt(this.args.size());
+        for (String arg : this.args) {
+            writeString(out, arg);
+        }
+    }
+
+    private static void writeString(DataOutputStream out, String s) throws IOException {
+        out.writeInt(s.length());
+        out.write(s.getBytes(Charsets.UTF_16));
     }
 }

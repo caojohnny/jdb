@@ -19,6 +19,7 @@ package com.gmail.woodyc40.topics.infra;
 import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.cmd.Inspect;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
+import com.gmail.woodyc40.topics.server.AgentServer;
 import com.google.common.collect.Maps;
 import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
@@ -27,9 +28,8 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.tools.jdi.ProcessAttachingConnector;
-import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -46,12 +46,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * debugged, i.e. breakpoints and source paths.
  */
 @NotThreadSafe
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@RequiredArgsConstructor
 public final class JvmContext {
-    /** The singleton instance of the JVM context */
-    @Getter
-    private static final JvmContext context = new JvmContext();
-
     /** Currently attached JVM PID */
     @Getter
     private volatile int currentPid = -1;
@@ -95,6 +91,30 @@ public final class JvmContext {
     @Getter
     @Setter
     private EventSet resumeSet;
+
+    /** Instance of the context */
+    private static volatile JvmContext instance;
+    /** The agent server used to receive method bytes */
+    @Getter
+    private final AgentServer server;
+
+    /**
+     * Initializes the context singleton.
+     *
+     * @param server the server to initialize
+     */
+    public static void init(AgentServer server) {
+        instance = new JvmContext(server);
+    }
+
+    /**
+     * Obtains the singleton instance of this context.
+     *
+     * @return the JVM context wrapper singleton
+     */
+    public static JvmContext getContext() {
+        return instance;
+    }
 
     /**
      * Sets the current JVM context to that of a JVM running

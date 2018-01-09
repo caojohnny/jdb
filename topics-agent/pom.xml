@@ -25,12 +25,12 @@
                             </addClasspath>
                         </manifest>
                         <manifestEntries>
-                            <premain>
+                            <Premain-Class>
                                 com.gmail.woodyc40.topics.AgentMain
-                            </premain>
-                            <main>
+                            </Premain-Class>
+                            <Main>
                                 com.gmail.woodyc40.topics.AgentMain
-                            </main>
+                            </Main>
                         </manifestEntries>
                     </archive>
                 </configuration>

@@ -16,11 +16,14 @@
  */
 package com.gmail.woodyc40.topics;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.lang.instrument.Instrumentation;
 import java.net.Socket;
 
 public class AgentMain {
-    public static void main(String[] args) throws IOException {
+    public static void premain(String arg, Instrumentation inst) throws IOException {
         Socket socket = new Socket("127.0.0.1", 5000);
+        ByteArrayInputStream in = new ByteArrayInputStream(new byte[1024]);
     }
 }

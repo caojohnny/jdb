@@ -16,13 +16,31 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
+import com.gmail.woodyc40.topics.cmd.Enter;
+import com.gmail.woodyc40.topics.infra.JvmContext;
+import com.google.common.base.Charsets;
+import com.sun.jdi.ReferenceType;
+import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.request.EventRequestManager;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
  * Schema:
  * int:size
  * byte[] data
+ * int:strLen
+ * byte[]:strData
+ * int:listSize
+ *   int:strLen
+ *   byte:strData
  */
 public class SignalInRespMethod implements SignalIn {
     @Override
@@ -30,5 +48,37 @@ public class SignalInRespMethod implements SignalIn {
         int size = in.readInt();
         byte[] data = new byte[size];
         in.read(data);
+
+        String meName = readString(in);
+
+        List<String> args = new ArrayList<>();
+        int listSize = in.readInt();
+        for (int i = 0; i < listSize; i++) {
+            args.add(readString(in));
+        }
+
+        ClassReader reader = new ClassReader(data);
+        reader.accept(new ClassVisitor(Opcodes.ASM6) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                return new MethodVisitor(this.api) {
+                    @Override
+                    public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                        System.out.println(owner + " owns " + name + ": desc=" + desc);
+
+                        VirtualMachine vm = JvmContext.getContext().getVm();
+                        EventRequestManager erm = vm.eventRequestManager();
+                        ReferenceType reference = Enter.getReference(owner);
+                    }
+                };
+            }
+        }, ClassReader.EXPAND_FRAMES);
+    }
+
+    private static String readString(DataInputStream in) throws IOException {
+        int strLen = in.readInt();
+        byte[] data = new byte[strLen];
+        in.read(data);
+        return new String(data, Charsets.UTF_16);
     }
 }
