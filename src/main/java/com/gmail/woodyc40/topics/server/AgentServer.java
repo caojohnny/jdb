@@ -80,6 +80,8 @@ public class AgentServer {
     /** The signal process queue */
     @Getter
     private final BlockingQueue<InDataWrapper> incoming = Queues.newLinkedBlockingQueue();
+    @Getter
+    private final AtomicReference<Thread> duplex = new AtomicReference<>();
 
     /** The threads used for Net IO */
     private final ExecutorService ioThreads;
@@ -97,11 +99,10 @@ public class AgentServer {
     public static AgentServer initServer(int port) {
         ExecutorService ioThreads = Executors.newFixedThreadPool(4);
         AgentServer server = new AgentServer(port, ioThreads);
-        AtomicReference<Thread> duplex = new AtomicReference<>();
 
         // Socket duplex
         ioThreads.execute(() -> {
-            duplex.set(Thread.currentThread());
+            server.getDuplex().set(Thread.currentThread());
 
             while (!Thread.currentThread().isInterrupted()) {
                 try {
@@ -196,7 +197,7 @@ public class AgentServer {
                     OutDataWrapper wrapper = new OutDataWrapper(buffer, SignalRegistry.writeSignal(take));
 
                     server.getOutgoing().add(wrapper);
-                    SocketInterruptUtil.signal(duplex.get());
+                    SocketInterruptUtil.signal(server.getDuplex().get());
                 } catch (InterruptedException e) {
                     break;
                 } catch (IOException e) {
@@ -265,6 +266,7 @@ public class AgentServer {
 
     public void write(SignalOut signal) {
         this.out.add(signal);
+        SocketInterruptUtil.signal(this.duplex.get());
     }
 
     private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
