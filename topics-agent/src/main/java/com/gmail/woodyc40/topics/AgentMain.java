@@ -16,14 +16,62 @@
  */
 package com.gmail.woodyc40.topics;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.net.Socket;
 
 public class AgentMain {
+    private static final ByteArrayOutputStream accumulator =
+            new ByteArrayOutputStream();
+
     public static void premain(String arg, Instrumentation inst) throws IOException {
         Socket socket = new Socket("127.0.0.1", 5000);
-        ByteArrayInputStream in = new ByteArrayInputStream(new byte[1024]);
+
+        new Thread(() -> {
+            try {
+                InputStream is = socket.getInputStream();
+
+                int headerLen = 0;
+                int payloadLen = 0;
+                int target = -1;
+                byte[] header = new byte[4];
+                byte[] payload = new byte[1024];
+                while (!socket.isClosed()) {
+                    headerLen += is.read(header);
+                    if (headerLen >= 4) {
+                        accumulator.write(header, 4, headerLen - 4);
+
+                        target = (header[0] << 24) +
+                                (header[1] << 16) +
+                                (header[2] << 8) +
+                                header[3];
+                    }
+
+                    if (target != -1) {
+                        int len;
+                        if ((len = is.read(payload)) > -1) {
+                            payloadLen += len;
+                            accumulator.write(payload, 0, len);
+                            if (payloadLen >= target) {
+                                DataInputStream in = new DataInputStream(
+                                        new ByteArrayInputStream(accumulator.toByteArray()));
+                                int id = in.readInt();
+
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
     }
 }

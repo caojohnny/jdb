@@ -220,7 +220,6 @@ public final class Main {
         PRINT_SIGNALS.parse(args);
         SPAWN_PROC_JOIN.parse(args);
         SPAWN_PROC.parse(args);
-        SP.parse(args);
         SERVER_PORT.parse(args);
 
         AgentServer client = AgentServer.initServer(port);
@@ -235,6 +234,7 @@ public final class Main {
         PrintStream out = new PrintStream(TERM.output());
         System.setOut(out);
 
+        SP.parse(args);
         // CLOSE_ON_DETACH.parse(args);
         PRINT_PROCS.parse(args);
         AUTO_ATTACH.parse(args);
