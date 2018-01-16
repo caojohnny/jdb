@@ -34,11 +34,14 @@ import java.util.List;
 
 /*
  * Schema:
- * int:size
- * byte[] data
- * int:strLen
- * byte[]:strData
- * int:listSize
+ * data
+ *   int:size
+ *   byte[] data
+ * meName
+ *   int:strLen
+ *   byte[]:strData
+ * list
+ *   int:listSize
  *   int:strLen
  *   byte:strData
  */

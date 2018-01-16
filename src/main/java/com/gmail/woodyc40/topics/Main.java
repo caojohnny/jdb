@@ -248,6 +248,8 @@ public final class Main {
             }
 
             if (line.equals("e") || line.equals("exit")) {
+                JvmContext.getContext().detach();
+                client.close();
                 return;
             }
 

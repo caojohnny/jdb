@@ -16,16 +16,15 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * SCHEMA:
- * - int:pid
+ * Schema:
+ * None
  */
-public class SignalInInit implements SignalIn {
+public class SignalOutRespInit implements SignalOut {
     @Override
-    public void read(DataInputStream inputStream) throws IOException {
-        // int pid = inputStream.readInt();
+    public void write(DataOutputStream out) throws IOException {
     }
 }

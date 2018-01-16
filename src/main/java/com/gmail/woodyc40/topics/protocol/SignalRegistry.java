@@ -41,9 +41,11 @@ public final class SignalRegistry {
 
     static {
         in(SignalInInit.class);
+        out(SignalOutRespInit.class);
         out(SignalOutBusy.class);
         in(SignalInRespMethod.class);
         out(SignalOutReqMethod.class);
+        out(SignalOutExit.class);
     }
 
     /**

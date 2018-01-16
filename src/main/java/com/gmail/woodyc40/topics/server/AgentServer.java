@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -60,7 +61,7 @@ public class AgentServer {
 
     /** The current state of the server */
     @Getter
-    private final AtomicInteger state = new AtomicInteger();
+    private final AtomicInteger state = new AtomicInteger(WAITING_FOR_CON);
     /** The current client */
     @Getter
     @Setter
@@ -124,33 +125,19 @@ public class AgentServer {
                             try {
                                 if (sock.read(header) == 0) {
                                     header.flip();
-                                    payloadLen = (header.getInt() << 24) +
-                                            (header.getInt() << 16) +
-                                            (header.getInt() << 8) +
-                                            header.getInt();
+                                    payloadLen = header.getInt();
+                                } else {
+                                    continue;
                                 }
 
                                 if (payloadLen != -1) {
                                     int len;
                                     while ((len = sock.read(payload)) > 0) {
-                                        int accumulate = Math.min(accumulator.size() - payloadLen, len);
-
                                         payload.flip();
-                                        accumulator.write(payload.array(), 0, accumulate);
-                                        payload.reset();
+                                        accumulator.write(payload.array(), 0, len);
+                                        System.out.println(Arrays.toString(accumulator.toByteArray()));
+                                        payload.clear();
                                     }
-                                }
-
-                                if (accumulator.size() == payloadLen) {
-                                    ByteArrayInputStream in = new ByteArrayInputStream(accumulator.toByteArray());
-                                    DataInputStream stream = new DataInputStream(in);
-                                    int id = stream.readInt();
-                                    byte[] bs = new byte[payloadLen - 1];
-                                    InDataWrapper wrapper = new InDataWrapper(bs, id);
-                                    server.getIncoming().add(wrapper);
-
-                                    payloadLen = -1;
-                                    header.reset();
                                 }
                             } catch (SocketInterruptUtil.Signal signal) {
                                 OutDataWrapper out;
@@ -167,6 +154,25 @@ public class AgentServer {
                                 }
 
                                 Thread.interrupted();
+                            }
+
+                            if (accumulator.size() >= payloadLen) {
+                                ByteArrayInputStream in = new ByteArrayInputStream(accumulator.toByteArray());
+                                DataInputStream stream = new DataInputStream(in);
+
+                                int id = stream.readInt();
+                                byte[] bs = new byte[payloadLen - 1];
+                                InDataWrapper wrapper = new InDataWrapper(bs, id);
+                                server.getIncoming().add(wrapper);
+
+                                payloadLen = -1;
+                                header.clear();
+                                accumulator = new ByteArrayOutputStream();
+                                int len;
+                                byte[] buf = new byte[1024];
+                                while ((len = in.read(buf)) > -1) {
+                                    accumulator.write(buf, 0, len);
+                                }
                             }
                         }
                     } catch (InterruptedException e) {

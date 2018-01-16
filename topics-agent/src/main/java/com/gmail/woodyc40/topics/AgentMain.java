@@ -16,6 +16,8 @@
  */
 package com.gmail.woodyc40.topics;
 
+import com.google.common.base.Charsets;
+
 import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.net.Socket;
@@ -29,6 +31,11 @@ public class AgentMain {
 
         new Thread(() -> {
             try {
+                OutputStream os = socket.getOutputStream();
+                DataOutputStream out = new DataOutputStream(os);
+                wi(out);
+                System.out.println("OUT: INIT");
+
                 InputStream is = socket.getInputStream();
 
                 int headerLen = 0;
@@ -57,6 +64,40 @@ public class AgentMain {
                                         new ByteArrayInputStream(accumulator.toByteArray()));
                                 int id = in.readInt();
 
+                                switch (id) {
+                                    case 5: // exit
+                                        int code = in.readInt();
+                                        String msg = rstr(in);
+                                        System.out.println("EXIT: " + msg);
+                                        System.exit(code);
+                                    case 4: // req method
+                                        String clsName = rstr(in);
+                                        String meName = rstr(in);
+                                        String[] params = new String[in.readInt()];
+                                        for (int i = 0; i < params.length; i++) {
+                                            params[i] = rstr(in);
+                                        }
+
+                                        System.out.println("RECV: Req method: " + clsName + "#" + meName);
+                                        inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
+                                            try {
+                                                wrd(out, classfileBuffer, meName, params);
+                                            } catch (IOException e) {
+                                                e.printStackTrace();
+                                            }
+                                            return classfileBuffer;
+                                        });
+
+                                        break;
+                                    case 2: // busy
+                                        System.out.println("BUSY");
+                                        break;
+                                    case 1: // resp init
+                                        System.out.println("CONNECTION SUCCESS");
+                                        break;
+                                    default:
+                                        System.out.println("INVALID SIGNAL: " + id);
+                                }
                             }
                         } else {
                             break;
@@ -73,5 +114,39 @@ public class AgentMain {
                 }
             }
         }).start();
+    }
+
+    private static String rstr(DataInputStream in) throws IOException {
+        int i = in.readInt();
+        byte[] bytes = new byte[i];
+        in.read(bytes);
+
+        return new String(bytes);
+    }
+
+    public static void wi(DataOutputStream out) throws IOException {
+        out.writeInt(4);
+        out.writeInt(0);
+    }
+
+    public static void wrd(DataOutputStream out, byte[] data, String method, String[] params) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        dos.writeInt(3);
+
+        dos.writeInt(data.length);
+        dos.write(data);
+
+        dos.writeInt(method.length());
+        dos.write(method.getBytes(Charsets.UTF_16));
+
+        dos.writeInt(params.length);
+        for (String param : params) {
+            dos.writeInt(param.length());
+            dos.write(param.getBytes(Charsets.UTF_16));
+        }
+
+        out.writeInt(baos.size());
+        baos.writeTo(out);
     }
 }
