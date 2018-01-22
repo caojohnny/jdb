@@ -26,6 +26,7 @@ import lombok.Setter;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -93,6 +94,7 @@ public class AgentServer {
         try {
             this.server = ServerSocketChannel.open();
             this.server.bind(new InetSocketAddress(port));
+            this.server.configureBlocking(true);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -114,51 +116,55 @@ public class AgentServer {
                             server.getHasConnection().await();
                         }
 
+
                         SocketChannel sock = server.getConn();
-                        SocketInterruptUtil.prepare(sock);
+                        InputStream in = sock.socket().getInputStream();
+                        OutputStream out = sock.socket().getOutputStream();
+                        sock.socket().setSoTimeout(1000);
 
                         ByteArrayOutputStream accumulator = new ByteArrayOutputStream();
-                        ByteBuffer header = ByteBuffer.allocate(4); // DIS = 4 byte int size
-                        ByteBuffer payload = ByteBuffer.allocate(1024);
+                        byte[] header = new byte[4];
+                        int headerLen = 0;
+                        byte[] payload = new byte[1024];
                         int payloadLen = -1;
                         while (true) {
                             try {
-                                if (sock.read(header) == 0) {
-                                    header.flip();
-                                    payloadLen = header.getInt();
+                                System.out.println(payloadLen);
+                                if (payloadLen != -1) {
+                                    int len;
+                                    while ((len = in.read(payload)) > -1) {
+                                        accumulator.write(payload, 0, len);
+                                        System.out.println(Arrays.toString(accumulator.toByteArray()));
+                                    }
+                                }
+
+                                int read = in.read(header);
+                                if ((headerLen += read) >= 4) {
+                                    for (int i = 0; i < headerLen - read; i++) {
+                                        header[headerLen + i] = header[i];
+                                    }
+                                    payloadLen = (header[0] << 24) + (header[1] << 16) + (header[2] << 8) + header[3];
                                 } else {
                                     continue;
                                 }
-
-                                if (payloadLen != -1) {
-                                    int len;
-                                    while ((len = sock.read(payload)) > 0) {
-                                        payload.flip();
-                                        accumulator.write(payload.array(), 0, len);
-                                        System.out.println(Arrays.toString(accumulator.toByteArray()));
-                                        payload.clear();
-                                    }
-                                }
-                            } catch (SocketInterruptUtil.Signal signal) {
-                                OutDataWrapper out;
-                                while ((out = server.getOutgoing().poll()) != null) {
-                                    ByteBuffer buf = out.getData();
+                            } catch (SocketTimeoutException e) {
+                                OutDataWrapper wrapper;
+                                while ((wrapper = server.getOutgoing().poll()) != null) {
+                                    byte[] buf = wrapper.getData();
 
                                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                                     DataOutputStream dos = new DataOutputStream(baos);
-                                    dos.write(buf.limit() + 4);
-                                    dos.write(out.getId());
+                                    dos.write(buf.length + 4);
+                                    dos.write(wrapper.getId());
 
-                                    sock.write(ByteBuffer.wrap(baos.toByteArray()));
-                                    sock.write(buf);
+                                    out.write(baos.toByteArray());
+                                    out.write(buf);
                                 }
-
-                                Thread.interrupted();
                             }
 
                             if (accumulator.size() >= payloadLen) {
-                                ByteArrayInputStream in = new ByteArrayInputStream(accumulator.toByteArray());
-                                DataInputStream stream = new DataInputStream(in);
+                                ByteArrayInputStream input = new ByteArrayInputStream(accumulator.toByteArray());
+                                DataInputStream stream = new DataInputStream(input);
 
                                 int id = stream.readInt();
                                 byte[] bs = new byte[payloadLen - 1];
@@ -166,11 +172,10 @@ public class AgentServer {
                                 server.getIncoming().add(wrapper);
 
                                 payloadLen = -1;
-                                header.clear();
                                 accumulator = new ByteArrayOutputStream();
                                 int len;
                                 byte[] buf = new byte[1024];
-                                while ((len = in.read(buf)) > -1) {
+                                while ((len = input.read(buf)) > -1) {
                                     accumulator.write(buf, 0, len);
                                 }
                             }
@@ -179,8 +184,6 @@ public class AgentServer {
                         break;
                     } catch (IOException e) {
                         throw new RuntimeException(e);
-                    } catch (SocketInterruptUtil.Signal signal) {
-                        Thread.interrupted();
                     } finally {
                         server.getLock().unlock();
                     }
@@ -200,11 +203,9 @@ public class AgentServer {
                     DataOutputStream dos = new DataOutputStream(out);
                     take.write(dos);
 
-                    ByteBuffer buffer = ByteBuffer.wrap(out.toByteArray());
-                    OutDataWrapper wrapper = new OutDataWrapper(buffer, SignalRegistry.writeSignal(take));
+                    OutDataWrapper wrapper = new OutDataWrapper(out.toByteArray(), SignalRegistry.writeSignal(take));
 
                     server.getOutgoing().add(wrapper);
-                    SocketInterruptUtil.signal(server.getDuplex().get());
                 } catch (InterruptedException e) {
                     break;
                 } catch (IOException e) {
@@ -273,7 +274,6 @@ public class AgentServer {
 
     public void write(SignalOut signal) {
         this.out.add(signal);
-        SocketInterruptUtil.signal(this.duplex.get());
     }
 
     private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
