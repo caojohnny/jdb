@@ -81,11 +81,15 @@ public class Enter implements CmdProcessor {
             }
 
             System.out.println();
-            String num = Main.prompt("Select class from above: ");
+            String num = Main.prompt("Select class from above (-1 to cancel): ");
             int idx = Integer.parseInt(num);
-            if (idx >= matches.size() || idx < 0) {
+            if (idx >= matches.size() || idx < -1) {
                 System.out.println("abort: index out of bounds");
             } else {
+                if (idx == 0) {
+                    return null;
+                }
+
                 return matches.get(idx);
             }
         }

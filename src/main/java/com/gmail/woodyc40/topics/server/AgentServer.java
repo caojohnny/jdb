@@ -30,7 +30,6 @@ import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -116,33 +115,38 @@ public class AgentServer {
                             server.getHasConnection().await();
                         }
 
-
                         SocketChannel sock = server.getConn();
                         InputStream in = sock.socket().getInputStream();
                         OutputStream out = sock.socket().getOutputStream();
                         sock.socket().setSoTimeout(1000);
 
+                        ByteArrayOutputStream headerAccum = new ByteArrayOutputStream();
                         ByteArrayOutputStream accumulator = new ByteArrayOutputStream();
                         byte[] header = new byte[4];
-                        int headerLen = 0;
                         byte[] payload = new byte[1024];
                         int payloadLen = -1;
                         while (true) {
                             try {
-                                System.out.println(payloadLen);
                                 if (payloadLen != -1) {
                                     int len;
                                     while ((len = in.read(payload)) > -1) {
                                         accumulator.write(payload, 0, len);
-                                        System.out.println(Arrays.toString(accumulator.toByteArray()));
                                     }
                                 }
 
                                 int read = in.read(header);
-                                if ((headerLen += read) >= 4) {
-                                    for (int i = 0; i < headerLen - read; i++) {
-                                        header[headerLen + i] = header[i];
+                                if (read > -1) {
+                                    headerAccum.write(header, 0, read);
+                                }
+
+                                if (headerAccum.size() >= 4) {
+                                    header = headerAccum.toByteArray();
+                                    if (headerAccum.size() > 4) {
+                                        for (int i = 4; i < header.length; i++) {
+                                            accumulator.write(header[i]);
+                                        }
                                     }
+
                                     payloadLen = (header[0] << 24) + (header[1] << 16) + (header[2] << 8) + header[3];
                                 } else {
                                     continue;
@@ -154,15 +158,15 @@ public class AgentServer {
 
                                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                                     DataOutputStream dos = new DataOutputStream(baos);
-                                    dos.write(buf.length + 4);
-                                    dos.write(wrapper.getId());
+                                    dos.writeInt(buf.length + 4);
+                                    dos.writeInt(wrapper.getId());
 
                                     out.write(baos.toByteArray());
                                     out.write(buf);
                                 }
                             }
 
-                            if (accumulator.size() >= payloadLen) {
+                            if (payloadLen != -1 && accumulator.size() >= payloadLen) {
                                 ByteArrayInputStream input = new ByteArrayInputStream(accumulator.toByteArray());
                                 DataInputStream stream = new DataInputStream(input);
 
@@ -172,7 +176,9 @@ public class AgentServer {
                                 server.getIncoming().add(wrapper);
 
                                 payloadLen = -1;
+                                headerAccum = new ByteArrayOutputStream();
                                 accumulator = new ByteArrayOutputStream();
+
                                 int len;
                                 byte[] buf = new byte[1024];
                                 while ((len = input.read(buf)) > -1) {
@@ -204,7 +210,6 @@ public class AgentServer {
                     take.write(dos);
 
                     OutDataWrapper wrapper = new OutDataWrapper(out.toByteArray(), SignalRegistry.writeSignal(take));
-
                     server.getOutgoing().add(wrapper);
                 } catch (InterruptedException e) {
                     break;

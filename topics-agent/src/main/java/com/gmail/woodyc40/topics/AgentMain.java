@@ -21,37 +21,49 @@ import com.google.common.base.Charsets;
 import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.net.Socket;
+import java.util.Arrays;
 
 public class AgentMain {
-    private static final ByteArrayOutputStream accumulator =
-            new ByteArrayOutputStream();
-
     public static void premain(String arg, Instrumentation inst) throws IOException {
         Socket socket = new Socket("127.0.0.1", 5000);
 
         new Thread(() -> {
             try {
+                ByteArrayOutputStream headerAccum =
+                        new ByteArrayOutputStream();
+                ByteArrayOutputStream accumulator =
+                        new ByteArrayOutputStream();
+
                 OutputStream os = socket.getOutputStream();
                 DataOutputStream out = new DataOutputStream(os);
                 wi(out);
-                System.out.println("OUT: INIT");
 
                 InputStream is = socket.getInputStream();
 
-                int headerLen = 0;
                 int payloadLen = 0;
                 int target = -1;
                 byte[] header = new byte[4];
                 byte[] payload = new byte[1024];
                 while (!socket.isClosed()) {
-                    headerLen += is.read(header);
-                    if (headerLen >= 4) {
-                        accumulator.write(header, 4, headerLen - 4);
+                    int read = is.read(header);
+                    if (read > -1) {
+                        headerAccum.write(header, 0, read);
+                    }
+
+                    System.out.println(Arrays.toString(headerAccum.toByteArray()));
+                    if (headerAccum.size() >= 4) {
+                        if (headerAccum.size() > 4) {
+                            header = headerAccum.toByteArray();
+                            for (int i = 4; i < header.length; i++) {
+                                accumulator.write(header[i]);
+                            }
+                        }
 
                         target = (header[0] << 24) +
                                 (header[1] << 16) +
                                 (header[2] << 8) +
                                 header[3];
+                        System.out.println(target);
                     }
 
                     if (target != -1) {
@@ -97,6 +109,21 @@ public class AgentMain {
                                         break;
                                     default:
                                         System.out.println("INVALID SIGNAL: " + id);
+                                }
+
+                                target = -1;
+                                payloadLen = 0;
+                                headerAccum = new ByteArrayOutputStream();
+                                accumulator = new ByteArrayOutputStream();
+
+                                int headerLen = 0;
+                                while (in.available() > 0) {
+                                    if (headerLen < 4) {
+                                        headerLen += 1;
+                                        headerAccum.write((int) in.readByte());
+                                    } else {
+                                        accumulator.write((int) in.readByte());
+                                    }
                                 }
                             }
                         } else {
