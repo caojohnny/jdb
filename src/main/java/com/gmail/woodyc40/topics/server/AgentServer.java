@@ -30,6 +30,7 @@ import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -158,7 +159,9 @@ public class AgentServer {
 
                                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                                     DataOutputStream dos = new DataOutputStream(baos);
-                                    dos.writeInt(buf.length + 4);
+                                    int v = buf.length + 4;
+
+                                    dos.writeInt(v);
                                     dos.writeInt(wrapper.getId());
 
                                     out.write(baos.toByteArray());

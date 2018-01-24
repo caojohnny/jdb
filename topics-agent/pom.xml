@@ -31,6 +31,9 @@
                             <Main>
                                 com.gmail.woodyc40.topics.AgentMain
                             </Main>
+                            <Can-Retransform-Classes>
+                                true
+                            </Can-Retransform-Classes>
                         </manifestEntries>
                     </archive>
                 </configuration>

@@ -52,6 +52,6 @@ public class SignalOutReqMethod implements SignalOut {
 
     private static void writeString(DataOutputStream out, String s) throws IOException {
         out.writeInt(s.length());
-        out.write(s.getBytes(Charsets.UTF_16));
+        out.write(s.getBytes(Charsets.UTF_8));
     }
 }

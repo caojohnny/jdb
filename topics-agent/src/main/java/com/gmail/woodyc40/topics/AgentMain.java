@@ -20,6 +20,7 @@ import com.google.common.base.Charsets;
 
 import java.io.*;
 import java.lang.instrument.Instrumentation;
+import java.lang.instrument.UnmodifiableClassException;
 import java.net.Socket;
 import java.util.Arrays;
 
@@ -52,18 +53,17 @@ public class AgentMain {
 
                     System.out.println(Arrays.toString(headerAccum.toByteArray()));
                     if (headerAccum.size() >= 4) {
+                        header = headerAccum.toByteArray();
                         if (headerAccum.size() > 4) {
-                            header = headerAccum.toByteArray();
                             for (int i = 4; i < header.length; i++) {
                                 accumulator.write(header[i]);
                             }
                         }
 
-                        target = (header[0] << 24) +
-                                (header[1] << 16) +
-                                (header[2] << 8) +
-                                header[3];
-                        System.out.println(target);
+                        target = (int) header[0] << 24;
+                        target |= (int) header[1] << 16;
+                        target |= (int) header[2] << 8;
+                        target |= header[3] & 0xFF;
                     }
 
                     if (target != -1) {
@@ -74,6 +74,7 @@ public class AgentMain {
                             if (payloadLen >= target) {
                                 DataInputStream in = new DataInputStream(
                                         new ByteArrayInputStream(accumulator.toByteArray()));
+                                System.out.println(Arrays.toString(accumulator.toByteArray()));
                                 int id = in.readInt();
 
                                 switch (id) {
@@ -83,6 +84,7 @@ public class AgentMain {
                                         System.out.println("EXIT: " + msg);
                                         System.exit(code);
                                     case 4: // req method
+                                        System.out.println();
                                         String clsName = rstr(in);
                                         String meName = rstr(in);
                                         String[] params = new String[in.readInt()];
@@ -90,7 +92,7 @@ public class AgentMain {
                                             params[i] = rstr(in);
                                         }
 
-                                        System.out.println("RECV: Req method: " + clsName + "#" + meName);
+                                        System.out.println("RECV: Req method: " + clsName + "#" + meName + Arrays.toString(params));
                                         inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
                                             try {
                                                 wrd(out, classfileBuffer, meName, params);
@@ -99,6 +101,7 @@ public class AgentMain {
                                             }
                                             return classfileBuffer;
                                         });
+                                        inst.retransformClasses(Class.forName(clsName));
 
                                         break;
                                     case 2: // busy
@@ -131,7 +134,7 @@ public class AgentMain {
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (IOException | ClassNotFoundException | UnmodifiableClassException e) {
                 throw new RuntimeException(e);
             } finally {
                 try {
