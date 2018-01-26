@@ -15,6 +15,7 @@ public class Scenario {
         Scanner scanner = new Scanner(System.in);
         scanner.nextLine();
         System.out.println("ok");
+        System.out.println("let's try again");
 
         changeStack();
         pop2();

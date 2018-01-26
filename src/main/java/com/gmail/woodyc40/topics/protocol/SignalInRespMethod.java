@@ -16,12 +16,13 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import com.gmail.woodyc40.topics.cmd.Enter;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.google.common.base.Charsets;
+import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.request.EventRequestManager;
+import com.sun.jdi.request.MethodExitRequest;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -29,8 +30,6 @@ import org.objectweb.asm.Opcodes;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /*
  * Schema:
@@ -40,38 +39,39 @@ import java.util.List;
  * meName
  *   int:strLen
  *   byte[]:strData
- * list
- *   int:listSize
+ * desc
  *   int:strLen
- *   byte:strData
+ *   byte[]:strData
  */
 public class SignalInRespMethod implements SignalIn {
     @Override
     public void read(DataInputStream in) throws IOException {
         int size = in.readInt();
         byte[] data = new byte[size];
-        in.read(data);
+        in.readFully(data);
 
-        String meName = readString(in);
-
-        List<String> args = new ArrayList<>();
-        int listSize = in.readInt();
-        for (int i = 0; i < listSize; i++) {
-            args.add(readString(in));
-        }
+        String name = readString(in);
+        String desc = readString(in);
 
         ClassReader reader = new ClassReader(data);
         reader.accept(new ClassVisitor(Opcodes.ASM6) {
             @Override
-            public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+            public MethodVisitor visitMethod(int access, String n, String d, String signature, String[] exceptions) {
+                if (!name.equals(n) || !desc.equals(d)) {
+                    return null;
+                }
+
                 return new MethodVisitor(this.api) {
                     @Override
-                    public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                        System.out.println(owner + " owns " + name + ": desc=" + desc);
-
+                    public void visitMethodInsn(int opcode, String owner, String na, String de, boolean itf) {
                         VirtualMachine vm = JvmContext.getContext().getVm();
                         EventRequestManager erm = vm.eventRequestManager();
-                        ReferenceType reference = Enter.getReference(owner);
+                        ReferenceType type = vm.classesByName(owner.replaceAll("/", "\\.")).get(0);
+                        for (Method method : type.methodsByName(na)) {
+                            if (method.signature().equals(de)) {
+                                MethodExitRequest req = erm.createMethodExitRequest();
+                            }
+                        }
                     }
                 };
             }
@@ -81,7 +81,7 @@ public class SignalInRespMethod implements SignalIn {
     private static String readString(DataInputStream in) throws IOException {
         int strLen = in.readInt();
         byte[] data = new byte[strLen];
-        in.read(data);
-        return new String(data, Charsets.UTF_16);
+        in.readFully(data);
+        return new String(data, Charsets.UTF_8);
     }
 }

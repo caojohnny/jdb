@@ -30,7 +30,6 @@ import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -148,7 +147,7 @@ public class AgentServer {
                                         }
                                     }
 
-                                    payloadLen = (header[0] << 24) + (header[1] << 16) + (header[2] << 8) + header[3];
+                                    payloadLen = (header[0] << 24) + (header[1] << 16) + (header[2] << 8) + (header[3] & 0xFF);
                                 } else {
                                     continue;
                                 }
@@ -174,7 +173,8 @@ public class AgentServer {
                                 DataInputStream stream = new DataInputStream(input);
 
                                 int id = stream.readInt();
-                                byte[] bs = new byte[payloadLen - 1];
+                                byte[] bs = new byte[payloadLen - 4];
+                                stream.readFully(bs);
                                 InDataWrapper wrapper = new InDataWrapper(bs, id);
                                 server.getIncoming().add(wrapper);
 

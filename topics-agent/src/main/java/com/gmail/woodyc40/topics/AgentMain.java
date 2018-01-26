@@ -17,12 +17,11 @@
 package com.gmail.woodyc40.topics;
 
 import com.google.common.base.Charsets;
+import com.google.common.io.ByteStreams;
 
 import java.io.*;
 import java.lang.instrument.Instrumentation;
-import java.lang.instrument.UnmodifiableClassException;
 import java.net.Socket;
-import java.util.Arrays;
 
 public class AgentMain {
     public static void premain(String arg, Instrumentation inst) throws IOException {
@@ -51,7 +50,6 @@ public class AgentMain {
                         headerAccum.write(header, 0, read);
                     }
 
-                    System.out.println(Arrays.toString(headerAccum.toByteArray()));
                     if (headerAccum.size() >= 4) {
                         header = headerAccum.toByteArray();
                         if (headerAccum.size() > 4) {
@@ -74,7 +72,6 @@ public class AgentMain {
                             if (payloadLen >= target) {
                                 DataInputStream in = new DataInputStream(
                                         new ByteArrayInputStream(accumulator.toByteArray()));
-                                System.out.println(Arrays.toString(accumulator.toByteArray()));
                                 int id = in.readInt();
 
                                 switch (id) {
@@ -87,21 +84,12 @@ public class AgentMain {
                                         System.out.println();
                                         String clsName = rstr(in);
                                         String meName = rstr(in);
-                                        String[] params = new String[in.readInt()];
-                                        for (int i = 0; i < params.length; i++) {
-                                            params[i] = rstr(in);
-                                        }
+                                        String desc = rstr(in);
 
-                                        System.out.println("RECV: Req method: " + clsName + "#" + meName + Arrays.toString(params));
-                                        inst.addTransformer((loader, className, classBeingRedefined, protectionDomain, classfileBuffer) -> {
-                                            try {
-                                                wrd(out, classfileBuffer, meName, params);
-                                            } catch (IOException e) {
-                                                e.printStackTrace();
-                                            }
-                                            return classfileBuffer;
-                                        });
-                                        inst.retransformClasses(Class.forName(clsName));
+                                        Class<?> cls = Class.forName(clsName);
+                                        InputStream cf = cls.getResourceAsStream(cls.getSimpleName() + ".class");
+                                        byte[] bytes = ByteStreams.toByteArray(cf);
+                                        wrd(out, bytes, meName, desc);
 
                                         break;
                                     case 2: // busy
@@ -134,7 +122,7 @@ public class AgentMain {
                         }
                     }
                 }
-            } catch (IOException | ClassNotFoundException | UnmodifiableClassException e) {
+            } catch (IOException | ClassNotFoundException e) {
                 throw new RuntimeException(e);
             } finally {
                 try {
@@ -149,7 +137,7 @@ public class AgentMain {
     private static String rstr(DataInputStream in) throws IOException {
         int i = in.readInt();
         byte[] bytes = new byte[i];
-        in.read(bytes);
+        in.readFully(bytes);
 
         return new String(bytes);
     }
@@ -159,7 +147,7 @@ public class AgentMain {
         out.writeInt(0);
     }
 
-    public static void wrd(DataOutputStream out, byte[] data, String method, String[] params) throws IOException {
+    public static void wrd(DataOutputStream out, byte[] data, String method, String desc) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         dos.writeInt(3);
@@ -168,13 +156,10 @@ public class AgentMain {
         dos.write(data);
 
         dos.writeInt(method.length());
-        dos.write(method.getBytes(Charsets.UTF_16));
+        dos.write(method.getBytes(Charsets.UTF_8));
 
-        dos.writeInt(params.length);
-        for (String param : params) {
-            dos.writeInt(param.length());
-            dos.write(param.getBytes(Charsets.UTF_16));
-        }
+        dos.writeInt(desc.length());
+        dos.write(desc.getBytes(Charsets.UTF_8));
 
         out.writeInt(baos.size());
         baos.writeTo(out);

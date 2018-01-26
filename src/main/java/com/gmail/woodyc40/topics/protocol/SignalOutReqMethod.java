@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.List;
 
 /*
  * Schema:
@@ -37,17 +36,13 @@ import java.util.List;
 public class SignalOutReqMethod implements SignalOut {
     private final String cls;
     private final String mename;
-    private final List<String> args;
+    private final String desc;
 
     @Override
     public void write(DataOutputStream out) throws IOException {
         writeString(out, this.cls);
         writeString(out, this.mename);
-
-        out.writeInt(this.args.size());
-        for (String arg : this.args) {
-            writeString(out, arg);
-        }
+        writeString(out, this.desc);
     }
 
     private static void writeString(DataOutputStream out, String s) throws IOException {

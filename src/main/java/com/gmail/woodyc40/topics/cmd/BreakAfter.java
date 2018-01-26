@@ -19,10 +19,7 @@ package com.gmail.woodyc40.topics.cmd;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.gmail.woodyc40.topics.protocol.SignalOutReqMethod;
-import com.sun.jdi.AbsentInformationException;
-import com.sun.jdi.Location;
-import com.sun.jdi.ReferenceType;
-import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.*;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.EventRequestManager;
 
@@ -81,9 +78,10 @@ public class BreakAfter implements CmdProcessor {
                 JvmContext.getContext().getBreakpoints().put(
                         location.sourceName() + ':' + lineNumber, req);
 
+                Method method = location.method();
                 JvmContext.getContext().getServer().write(new SignalOutReqMethod(
-                        location.declaringType().name(), location.method().name(), location.method().argumentTypeNames()));
-                System.out.println("Breakpoint after " + type.name() + "." + location.method().name() + ":" + lineNumber);
+                        location.declaringType().name(), method.name(), method.signature()));
+                System.out.println("Breakpoint after " + type.name() + "." + method.name() + ":" + lineNumber);
                 System.out.println();
 
                 String line = JvmContext.getContext().lookupLine(type.name(), lineNumber, 1);
