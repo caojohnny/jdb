@@ -31,7 +31,10 @@ import org.objectweb.asm.Opcodes;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-/*
+/**
+ * A signal response in which the payload is the bytecode
+ * data of the class to inspect for methods.
+ *
  * Schema:
  * data
  *   int:size
@@ -44,6 +47,13 @@ import java.io.IOException;
  *   byte[]:strData
  */
 public class SignalInRespMethod implements SignalIn {
+    private static String readString(DataInputStream in) throws IOException {
+        int strLen = in.readInt();
+        byte[] data = new byte[strLen];
+        in.readFully(data);
+        return new String(data, Charsets.UTF_8);
+    }
+
     @Override
     public void read(DataInputStream in) throws IOException {
         int size = in.readInt();
@@ -70,18 +80,13 @@ public class SignalInRespMethod implements SignalIn {
                         for (Method method : type.methodsByName(na)) {
                             if (method.signature().equals(de)) {
                                 MethodExitRequest req = erm.createMethodExitRequest();
+                                req.addClassFilter(type);
+                                req.enable();
                             }
                         }
                     }
                 };
             }
         }, ClassReader.EXPAND_FRAMES);
-    }
-
-    private static String readString(DataInputStream in) throws IOException {
-        int strLen = in.readInt();
-        byte[] data = new byte[strLen];
-        in.readFully(data);
-        return new String(data, Charsets.UTF_8);
     }
 }

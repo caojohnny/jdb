@@ -26,6 +26,26 @@ import java.util.Map;
 import java.util.function.Function;
 
 public class ClearBreaks implements CmdProcessor {
+    /**
+     * Removes and disables all of the breakpoints from the
+     * scope defined by the filter function.
+     *
+     * @param filter whether or not to disable a given
+     * breakpoint
+     */
+    private static void clearBreaks(Function<BreakpointRequest, Boolean> filter) {
+        Map<String, BreakpointRequest> breakpoints = JvmContext.getContext().getBreakpoints();
+        for (Iterator<Map.Entry<String, BreakpointRequest>> it = breakpoints.entrySet().iterator();
+             it.hasNext(); ) {
+            Map.Entry<String, BreakpointRequest> next = it.next();
+            if (filter.apply(next.getValue())) {
+                next.getValue().disable();
+                it.remove();
+                System.out.println("Clear break at " + next.getKey());
+            }
+        }
+    }
+
     @Override
     public String name() {
         return "clearbreaks";
@@ -99,26 +119,6 @@ public class ClearBreaks implements CmdProcessor {
             }
         } else {
             System.out.println("clearbreaks");
-        }
-    }
-
-    /**
-     * Removes and disables all of the breakpoints from the
-     * scope defined by the filter function.
-     *
-     * @param filter whether or not to disable a given
-     * breakpoint
-     */
-    private static void clearBreaks(Function<BreakpointRequest, Boolean> filter) {
-        Map<String, BreakpointRequest> breakpoints = JvmContext.getContext().getBreakpoints();
-        for (Iterator<Map.Entry<String, BreakpointRequest>> it = breakpoints.entrySet().iterator();
-             it.hasNext(); ) {
-            Map.Entry<String, BreakpointRequest> next = it.next();
-            if (filter.apply(next.getValue())) {
-                next.getValue().disable();
-                it.remove();
-                System.out.println("Clear break at " + next.getKey());
-            }
         }
     }
 }

@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.infra;
 
 import com.gmail.woodyc40.topics.Main;
-import com.gmail.woodyc40.topics.cmd.Inspect;
 import com.gmail.woodyc40.topics.cmd.LsJvm;
 import com.gmail.woodyc40.topics.server.AgentServer;
 import com.google.common.collect.Maps;
@@ -48,6 +47,29 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @NotThreadSafe
 @RequiredArgsConstructor
 public final class JvmContext {
+    /** Instance of the context */
+    private static volatile JvmContext instance;
+    /** The collection of paths leading to class sources */
+    @Getter
+    private final Map<String, Path> sourcePath = Maps.newHashMap();
+    /** Mapping of FQN:LN breakpoint info to disable breakpoints */
+    @Getter
+    private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
+    /** The previous breakpoint frames */
+    @Getter
+    private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
+    @Getter
+    private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
+    /** Lock used to protect the breakpoint events */
+    @Getter
+    private final Object lock = new Object();
+    /** The agent server used to receive method bytes */
+    @Getter
+    private final AgentServer server;
+    /** Should the VM exit() when detached? */
+    @Getter
+    @Setter
+    public volatile boolean closeOnDetach;
     /** Currently attached JVM PID */
     @Getter
     private volatile int currentPid = -1;
@@ -56,31 +78,10 @@ public final class JvmContext {
     private VirtualMachine vm;
     /** The listener thread for VM breakpoints */
     private volatile Thread breakpointListener;
-    /** The collection of paths leading to class sources */
-    @Getter
-    private final Map<String, Path> sourcePath = Maps.newHashMap();
-    /** Should the VM exit() when detached? */
-    @Getter
-    @Setter
-    public volatile boolean closeOnDetach;
-
     /** The class that is currently being modified */
     @Getter
     @Setter
     private ReferenceType currentRef;
-    /** Mapping of FQN:LN breakpoint info to disable breakpoints */
-    @Getter
-    private final Map<String, BreakpointRequest> breakpoints = new HashMap<>();
-
-    /** The previous breakpoint frames */
-    @Getter
-    private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
-    @Getter
-    private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
-
-    /** Lock used to protect the breakpoint events */
-    @Getter
-    private final Object lock = new Object();
     /** The current breakpoint that is active on the VM */
     @GuardedBy("lock")
     @Getter
@@ -91,12 +92,6 @@ public final class JvmContext {
     @Getter
     @Setter
     private EventSet resumeSet;
-
-    /** Instance of the context */
-    private static volatile JvmContext instance;
-    /** The agent server used to receive method bytes */
-    @Getter
-    private final AgentServer server;
 
     /**
      * Initializes the context singleton.
@@ -222,8 +217,6 @@ public final class JvmContext {
                                     Value value = exit.returnValue();
 
                                     returns.add(new AbstractMap.SimpleImmutableEntry<>(exit.location(), value));
-
-                                    System.out.println(exit.location() + " = " + Inspect.processValue(value));
                                 }
                             }
                         } catch (AbsentInformationException e) {

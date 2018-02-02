@@ -26,35 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Enter implements CmdProcessor {
-    @Override
-    public String name() {
-        return "enter";
-    }
-
-    @Override
-    public String help() {
-        return "Enters a class of the given name";
-    }
-
-    @Override
-    public String[] aliases() {
-        return new String[] { "e", "ent" };
-    }
-
-    @Override
-    public void process(String alias, String[] args) {
-        if (args.length != 1) {
-            System.out.println("enter [file]");
-            return;
-        }
-
-        ReferenceType type = getReference(args[0]);
-        if (type != null) {
-            System.out.println("enter: " + type.name());
-            JvmContext.getContext().setCurrentRef(type);
-        }
-    }
-
     /**
      * Obtains a class reference type from the given name.
      *
@@ -94,5 +65,34 @@ public class Enter implements CmdProcessor {
             }
         }
         return null;
+    }
+
+    @Override
+    public String name() {
+        return "enter";
+    }
+
+    @Override
+    public String help() {
+        return "Enters a class of the given name";
+    }
+
+    @Override
+    public String[] aliases() {
+        return new String[] { "e", "ent" };
+    }
+
+    @Override
+    public void process(String alias, String[] args) {
+        if (args.length != 1) {
+            System.out.println("enter [file]");
+            return;
+        }
+
+        ReferenceType type = getReference(args[0]);
+        if (type != null) {
+            System.out.println("enter: " + type.name());
+            JvmContext.getContext().setCurrentRef(type);
+        }
     }
 }

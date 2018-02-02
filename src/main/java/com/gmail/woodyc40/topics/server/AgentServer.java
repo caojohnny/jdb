@@ -16,6 +16,7 @@
  */
 package com.gmail.woodyc40.topics.server;
 
+import com.gmail.woodyc40.topics.Main;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.protocol.*;
 import com.google.common.collect.Queues;
@@ -62,18 +63,12 @@ public class AgentServer {
     /** The current state of the server */
     @Getter
     private final AtomicInteger state = new AtomicInteger(WAITING_FOR_CON);
-    /** The current client */
-    @Getter
-    @Setter
-    @GuardedBy("lock")
-    private SocketChannel conn;
     /** Lock used to protect the connection */
     @Getter
     private final Lock lock = new ReentrantLock();
     /** Condition used to notify of a connection */
     @Getter
     private final Condition hasConnection = this.lock.newCondition();
-
     /** The signal send queue */
     @Getter
     private final BlockingQueue<SignalOut> out = Queues.newLinkedBlockingQueue();
@@ -84,9 +79,13 @@ public class AgentServer {
     private final BlockingQueue<InDataWrapper> incoming = Queues.newLinkedBlockingQueue();
     @Getter
     private final AtomicReference<Thread> duplex = new AtomicReference<>();
-
     /** The threads used for Net IO */
     private final ExecutorService ioThreads;
+    /** The current client */
+    @Getter
+    @Setter
+    @GuardedBy("lock")
+    private SocketChannel conn;
 
     private AgentServer(int port, ExecutorService ioThreads) {
         this.ioThreads = ioThreads;
@@ -99,6 +98,13 @@ public class AgentServer {
         }
     }
 
+    /**
+     * Initializes the server, which listens on the loopback
+     * on the given port.
+     *
+     * @param port the port on which to start the server
+     * @return the server object, used to send signals
+     */
     public static AgentServer initServer(int port) {
         ExecutorService ioThreads = Executors.newFixedThreadPool(4);
         AgentServer server = new AgentServer(port, ioThreads);
@@ -127,6 +133,11 @@ public class AgentServer {
                         int payloadLen = -1;
                         while (true) {
                             try {
+                                // Payload length has been
+                                // determined, read enough
+                                // bytes into the buffer
+                                // for the payload to be
+                                // determined.
                                 if (payloadLen != -1) {
                                     int len;
                                     while ((len = in.read(payload)) > -1) {
@@ -134,11 +145,18 @@ public class AgentServer {
                                     }
                                 }
 
+                                // Attempt to buffer the
+                                // bytes in order to
+                                // complete the header
                                 int read = in.read(header);
                                 if (read > -1) {
                                     headerAccum.write(header, 0, read);
                                 }
 
+                                // Header has been
+                                // accumulated, switch state
+                                // and write excess bytes to
+                                // the payload
                                 if (headerAccum.size() >= 4) {
                                     header = headerAccum.toByteArray();
                                     if (headerAccum.size() > 4) {
@@ -152,6 +170,9 @@ public class AgentServer {
                                     continue;
                                 }
                             } catch (SocketTimeoutException e) {
+                                // Socket has not read
+                                // anything, try to flush
+                                // the outgoing signal queue
                                 OutDataWrapper wrapper;
                                 while ((wrapper = server.getOutgoing().poll()) != null) {
                                     byte[] buf = wrapper.getData();
@@ -168,6 +189,11 @@ public class AgentServer {
                                 }
                             }
 
+                            // Read in the payload data once
+                            // the length has been
+                            // determined and the data has
+                            // filled the payload
+                            // accumulator.
                             if (payloadLen != -1 && accumulator.size() >= payloadLen) {
                                 ByteArrayInputStream input = new ByteArrayInputStream(accumulator.toByteArray());
                                 DataInputStream stream = new DataInputStream(input);
@@ -192,7 +218,8 @@ public class AgentServer {
                     } catch (InterruptedException e) {
                         break;
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        Main.printAsync("abort: disconnected");
+                        break;
                     } finally {
                         server.getLock().unlock();
                     }
@@ -200,6 +227,8 @@ public class AgentServer {
                     break;
                 }
             }
+
+            JvmContext.getContext().detach();
         });
 
         // Write processor
@@ -263,6 +292,35 @@ public class AgentServer {
         return server;
     }
 
+    /**
+     * Writes the given signal out to the socket.
+     *
+     * @param sig the signal to write
+     * @param ch the socket to which the signal will be
+     * written
+     * @throws IOException should not occur
+     */
+    private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
+        int id = SignalRegistry.writeSignal(sig);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        DataOutputStream stream = new DataOutputStream(out);
+        sig.write(stream);
+
+        int size = out.size() + 4;
+
+        ByteBuffer buf = ByteBuffer.allocate(size + 4);
+        buf.putInt(size);
+        buf.putInt(id);
+        buf.put(out.toByteArray());
+
+        ch.write(buf);
+    }
+
+    /**
+     * Closes the server and halts processing of the packet
+     * queue.
+     */
     public void close() {
         this.state.set(AgentServer.SHUTDOWN);
         try {
@@ -280,24 +338,13 @@ public class AgentServer {
         }
     }
 
+    /**
+     * Enqueues the given signal to be processed and written
+     * out to the connection with the target VM.
+     *
+     * @param signal the signal to write
+     */
     public void write(SignalOut signal) {
         this.out.add(signal);
-    }
-
-    private static void writeSignal(SignalOut sig, SocketChannel ch) throws IOException {
-        int id = SignalRegistry.writeSignal(sig);
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        DataOutputStream stream = new DataOutputStream(out);
-        sig.write(stream);
-
-        int size = out.size() + 4;
-
-        ByteBuffer buf = ByteBuffer.allocate(size + 4);
-        buf.putInt(size);
-        buf.putInt(id);
-        buf.put(out.toByteArray());
-
-        ch.write(buf);
     }
 }

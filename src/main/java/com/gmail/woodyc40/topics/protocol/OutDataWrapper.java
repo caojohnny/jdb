@@ -20,6 +20,10 @@ import lombok.Data;
 
 import javax.annotation.concurrent.Immutable;
 
+/**
+ * Wrapper over data to be written to the outgoing socket
+ * stream with the target VM.
+ */
 @Data
 @Immutable
 public class OutDataWrapper {

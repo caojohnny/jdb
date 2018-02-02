@@ -20,6 +20,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
+ * A signal sent to confirm the client initialization signal
+ * and begin communication (unused).
+ *
  * Schema:
  * None
  */

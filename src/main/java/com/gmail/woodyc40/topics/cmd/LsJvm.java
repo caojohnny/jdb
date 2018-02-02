@@ -26,28 +26,6 @@ import java.io.InputStreamReader;
 import java.util.Map;
 
 public class LsJvm implements CmdProcessor {
-    @Override
-    public String name() {
-        return "lsjvm";
-    }
-
-    @Override
-    public String help() {
-        return "Displays running JVM Processes";
-    }
-
-    @Override
-    public void process(String alias, String[] args) {
-        try {
-            Map<Integer, String> availablePids = getAvailablePids();
-            for (Map.Entry<Integer, String> entry : availablePids.entrySet()) {
-                System.out.println(entry.getKey() + " - " + entry.getValue());
-            }
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /**
      * Obtains the available JVM PIDs running on the current
      * system.
@@ -98,5 +76,27 @@ public class LsJvm implements CmdProcessor {
         ls.waitFor();
         ls.destroy();
         return availablePids;
+    }
+
+    @Override
+    public String name() {
+        return "lsjvm";
+    }
+
+    @Override
+    public String help() {
+        return "Displays running JVM Processes";
+    }
+
+    @Override
+    public void process(String alias, String[] args) {
+        try {
+            Map<Integer, String> availablePids = getAvailablePids();
+            for (Map.Entry<Integer, String> entry : availablePids.entrySet()) {
+                System.out.println(entry.getKey() + " - " + entry.getValue());
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

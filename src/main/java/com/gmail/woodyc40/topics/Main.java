@@ -19,9 +19,9 @@ package com.gmail.woodyc40.topics;
 import com.gmail.woodyc40.topics.cmd.*;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.Platform;
+import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import com.gmail.woodyc40.topics.protocol.SignalRegistry;
 import com.gmail.woodyc40.topics.server.AgentServer;
-import com.gmail.woodyc40.topics.infra.command.CmdManager;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
@@ -130,6 +130,17 @@ public final class Main {
     });
     /**
      * (Flag)
+     * --print-signals
+     * -ps
+     * Prints all the signals
+     */
+    private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> SignalRegistry.print());
+    /** The terminal interface being used */
+    private static final Terminal TERM;
+    /** The terminal line reader */
+    private static final LineReader READER;
+    /**
+     * (Flag)
      * --auto
      * -a
      * Enabling this flag allows the debugger to find the
@@ -169,18 +180,6 @@ public final class Main {
      */
     private static final ArgParser SERVER_PORT = ArgParser.newParser("port", "port",
             s -> port = Integer.parseInt(s));
-    /**
-     * (Flag)
-     * --print-signals
-     * -ps
-     * Prints all the signals
-     */
-    private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> SignalRegistry.print());
-
-    /** The terminal interface being used */
-    private static final Terminal TERM;
-    /** The terminal line reader */
-    private static final LineReader READER;
 
     static {
         try {
@@ -216,6 +215,8 @@ public final class Main {
         manager.register(new ClearBreaks());
         manager.register(new Exit());
         manager.register(new InspectVar());
+        manager.register(new Returns());
+        manager.register(new Dump());
 
         PRINT_SIGNALS.parse(args);
         SPAWN_PROC_JOIN.parse(args);

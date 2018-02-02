@@ -32,12 +32,12 @@ import java.util.Map;
 @ThreadSafe
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SignalRegistry {
-    /** The current packet ID to be used during init */
-    private static int ID_COUNTER;
     /** Out packets */
     private static final Map<Class<? extends SignalOut>, Integer> OUT_SIGNALS = new HashMap<>();
     /** In packets */
     private static final Map<Integer, Constructor<? extends SignalIn>> IN_SIGNALS = new HashMap<>();
+    /** The current packet ID to be used during init */
+    private static int ID_COUNTER;
 
     static {
         in(SignalInInit.class);

@@ -25,6 +25,7 @@ import java.io.IOException;
 /**
  * Sent to the client in order to request for the JVM to
  * exit.
+ *
  * SCHEMA:
  * - int:exitCode
  * - int:messageLength

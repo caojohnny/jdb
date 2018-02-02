@@ -23,42 +23,6 @@ import com.sun.jdi.*;
 import com.sun.jdi.event.BreakpointEvent;
 
 public class InspectVar implements CmdProcessor {
-    @Override
-    public String name() {
-        return "inspectvar";
-    }
-
-    @Override
-    public String help() {
-        return "Inspects a variable accessible to the current breakpoint";
-    }
-
-    @Override
-    public String[] aliases() {
-        return new String[] { "iv" };
-    }
-
-    @Override
-    public void process(String alias, String[] args) {
-        try {
-            if (args.length == 0) {
-                System.out.println("inspectvar [varname] <scope>");
-            } else if (args.length == 1) {
-                Var var = findVar(args[0]);
-                if (var != null) {
-                    inspect(var, "all");
-                }
-            } else {
-                Var var = findVar(args[0]);
-                if (var != null) {
-                    inspect(var, args[1]);
-                }
-            }
-        } catch (IncompatibleThreadStateException | AbsentInformationException | ClassNotLoadedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /**
      * Finds the variable by the given name in the context
      * of a breakpoint.
@@ -191,6 +155,42 @@ public class InspectVar implements CmdProcessor {
             return varName;
         } else {
             return varName.substring(0, sepIdx);
+        }
+    }
+
+    @Override
+    public String name() {
+        return "inspectvar";
+    }
+
+    @Override
+    public String help() {
+        return "Inspects a variable accessible to the current breakpoint";
+    }
+
+    @Override
+    public String[] aliases() {
+        return new String[] { "iv" };
+    }
+
+    @Override
+    public void process(String alias, String[] args) {
+        try {
+            if (args.length == 0) {
+                System.out.println("inspectvar [varname] <scope>");
+            } else if (args.length == 1) {
+                Var var = findVar(args[0]);
+                if (var != null) {
+                    inspect(var, "all");
+                }
+            } else {
+                Var var = findVar(args[0]);
+                if (var != null) {
+                    inspect(var, args[1]);
+                }
+            }
+        } catch (IncompatibleThreadStateException | AbsentInformationException | ClassNotLoadedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

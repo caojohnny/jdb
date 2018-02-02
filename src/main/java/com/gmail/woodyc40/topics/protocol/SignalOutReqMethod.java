@@ -38,15 +38,15 @@ public class SignalOutReqMethod implements SignalOut {
     private final String mename;
     private final String desc;
 
+    private static void writeString(DataOutputStream out, String s) throws IOException {
+        out.writeInt(s.length());
+        out.write(s.getBytes(Charsets.UTF_8));
+    }
+
     @Override
     public void write(DataOutputStream out) throws IOException {
         writeString(out, this.cls);
         writeString(out, this.mename);
         writeString(out, this.desc);
-    }
-
-    private static void writeString(DataOutputStream out, String s) throws IOException {
-        out.writeInt(s.length());
-        out.write(s.getBytes(Charsets.UTF_8));
     }
 }

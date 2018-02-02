@@ -24,36 +24,6 @@ import com.sun.jdi.event.BreakpointEvent;
 import java.util.Map;
 
 public class Inspect implements CmdProcessor {
-    @Override
-    public String name() {
-        return "inspect";
-    }
-
-    @Override
-    public String help() {
-        return "Inspects the current object state at a breakpoint";
-    }
-
-    @Override
-    public String[] aliases() {
-        return new String[] { "i" };
-    }
-
-    @Override
-    public void process(String alias, String[] args) {
-        try {
-            if (args.length == 0) {
-                inspect("all");
-            } else {
-                for (String s : args) {
-                    inspect(s);
-                }
-            }
-        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /**
      * Inspects the variables at the current breakpoint with
      * the given scope between all, stack, and instance
@@ -241,5 +211,35 @@ public class Inspect implements CmdProcessor {
         }
 
         return String.valueOf(value);
+    }
+
+    @Override
+    public String name() {
+        return "inspect";
+    }
+
+    @Override
+    public String help() {
+        return "Inspects the current object state at a breakpoint";
+    }
+
+    @Override
+    public String[] aliases() {
+        return new String[] { "i" };
+    }
+
+    @Override
+    public void process(String alias, String[] args) {
+        try {
+            if (args.length == 0) {
+                inspect("all");
+            } else {
+                for (String s : args) {
+                    inspect(s);
+                }
+            }
+        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

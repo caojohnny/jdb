@@ -20,8 +20,11 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
+ * Notifies the server that the client has successfully
+ * connected.
+ *
  * SCHEMA:
- * - int:pid
+ * None
  */
 public class SignalInInit implements SignalIn {
     @Override
