@@ -16,18 +16,18 @@
  */
 package com.gmail.woodyc40.topics.protocol;
 
-import java.io.DataOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * Sent to the client whenever the server is not able to
- * handle a request to connect.
- *
+ * Notifies the server that the client has successfully
+ * connected.
  * SCHEMA:
- * Empty
+ * None
  */
-public class SignalOutBusy implements SignalOut {
+public class SignalInInit implements SignalIn {
     @Override
-    public void write(DataOutputStream out) throws IOException {
+    public void read(DataInputStream inputStream) throws IOException {
+        // int pid = inputStream.readInt();
     }
 }

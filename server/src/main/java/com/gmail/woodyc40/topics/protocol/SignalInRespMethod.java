@@ -34,17 +34,16 @@ import java.io.IOException;
 /**
  * A signal response in which the payload is the bytecode
  * data of the class to inspect for methods.
- *
  * Schema:
  * data
- *   int:size
- *   byte[] data
+ * int:size
+ * byte[] data
  * meName
- *   int:strLen
- *   byte[]:strData
+ * int:strLen
+ * byte[]:strData
  * desc
- *   int:strLen
- *   byte[]:strData
+ * int:strLen
+ * byte[]:strData
  */
 public class SignalInRespMethod implements SignalIn {
     private static String readString(DataInputStream in) throws IOException {
