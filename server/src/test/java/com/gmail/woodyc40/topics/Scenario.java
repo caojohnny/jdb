@@ -1,19 +1,20 @@
 package com.gmail.woodyc40.topics;
 
-import java.util.Scanner;
-
 public class Scenario {
     private static int d = 33;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         int a = 3;
         int b = 4;
         int c = a + b;
         Object nil = null;
 
         // Pause
-        Scanner scanner = new Scanner(System.in);
-        scanner.nextLine();
+        Object o = new Object();
+        Integer.valueOf(o.hashCode()).hashCode();
+
+        Thread.sleep(7000);
+
         System.out.println("ok");
         System.out.println("let's try again");
 

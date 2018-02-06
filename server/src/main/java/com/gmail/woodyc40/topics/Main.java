@@ -217,6 +217,8 @@ public final class Main {
         manager.register(new InspectVar());
         manager.register(new Returns());
         manager.register(new Dump());
+        manager.register(new Proceed());
+        manager.register(new See());
 
         PRINT_SIGNALS.parse(args);
         SPAWN_PROC_JOIN.parse(args);

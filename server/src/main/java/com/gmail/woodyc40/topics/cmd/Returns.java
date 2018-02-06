@@ -65,7 +65,7 @@ public class Returns implements CmdProcessor {
         Queue<Map.Entry<Location, Value>> returns = JvmContext.getContext().getReturns();
         for (Map.Entry<Location, Value> aReturn : returns) {
             Location loc = aReturn.getKey();
-            if (loc.method().equals(method)) {
+            if (true) {
                 found = true;
 
                 System.out.println(loc.declaringType().name() + ":" + loc.lineNumber() + " = " + aReturn.getValue());

@@ -81,7 +81,6 @@ public class AgentMain {
                                         System.out.println("EXIT: " + msg);
                                         System.exit(code);
                                     case 4: // req method
-                                        System.out.println();
                                         String clsName = rstr(in);
                                         String meName = rstr(in);
                                         String desc = rstr(in);
