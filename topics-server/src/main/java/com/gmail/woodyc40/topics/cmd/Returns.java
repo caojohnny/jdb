@@ -68,7 +68,7 @@ public class Returns implements CmdProcessor {
             if (true) {
                 found = true;
 
-                System.out.println(loc.declaringType().name() + ":" + loc.lineNumber() + " = " + aReturn.getValue());
+                System.out.println(loc.declaringType().name() + " = " + aReturn.getValue());
             }
         }
 

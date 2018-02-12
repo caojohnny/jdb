@@ -12,7 +12,7 @@
 
     <modules>
         <module>topics-agent</module>
-        <module>server</module>
+        <module>topics-server</module>
     </modules>
 
     <build>

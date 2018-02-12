@@ -9,11 +9,10 @@ public class Scenario {
         int c = a + b;
         Object nil = null;
 
-        // Pause
+        Thread.sleep(7000);
+
         Object o = new Object();
         Integer.valueOf(o.hashCode()).hashCode();
-
-        Thread.sleep(7000);
 
         System.out.println("ok");
         System.out.println("let's try again");

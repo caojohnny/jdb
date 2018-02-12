@@ -217,6 +217,9 @@ public final class JvmContext {
                                     Value value = exit.returnValue();
 
                                     returns.add(new AbstractMap.SimpleImmutableEntry<>(exit.location(), value));
+                                    if (!exit.thread().isAtBreakpoint()) {
+                                        exit.thread().resume();
+                                    }
                                 }
                             }
                         } catch (AbsentInformationException e) {

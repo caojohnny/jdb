@@ -21,6 +21,7 @@ import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.sun.jdi.*;
 import com.sun.jdi.event.BreakpointEvent;
 
+import java.util.List;
 import java.util.Map;
 
 public class Inspect implements CmdProcessor {
@@ -35,7 +36,7 @@ public class Inspect implements CmdProcessor {
      * @throws AbsentInformationException if the JVM is not
      * setup to send stack info
      */
-    private static void inspect(String scope) throws IncompatibleThreadStateException, AbsentInformationException {
+    private static void inspect(String scope) {
         BreakpointEvent event;
         synchronized (JvmContext.getContext().getLock()) {
             event = JvmContext.getContext().getCurrentBreakpoint();
@@ -46,7 +47,14 @@ public class Inspect implements CmdProcessor {
             return;
         }
 
-        StackFrame frame = event.thread().frame(0);
+
+        StackFrame frame;
+        try {
+            frame = event.thread().frame(0);
+        } catch (IncompatibleThreadStateException e) {
+            System.out.println("abort: thread not at breakpoint");
+            return;
+        }
         if (frame == null) {
             throw new RuntimeException("invalid frame");
         }
@@ -57,10 +65,17 @@ public class Inspect implements CmdProcessor {
         System.out.println("Inspect breakpoint @ " + location.method() + ':' + location.lineNumber());
         System.out.println();
 
+        List<LocalVariable> list;
+        try {
+            list = frame.visibleVariables();
+        } catch (AbsentInformationException e) {
+            System.out.println("abort: cannot grab visible variables");
+            return;
+        }
         switch (scope) {
             case "a":
             case "all":
-                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
+                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(list).entrySet()) {
                     LocalVariable var = entry.getKey();
                     if (entry.getValue() == null) {
                         continue;
@@ -78,7 +93,7 @@ public class Inspect implements CmdProcessor {
                 break;
             case "s":
             case "stack":
-                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(frame.visibleVariables()).entrySet()) {
+                for (Map.Entry<LocalVariable, Value> entry : frame.getValues(list).entrySet()) {
                     LocalVariable var = entry.getKey();
                     if (entry.getValue() == null) {
                         continue;
@@ -230,16 +245,12 @@ public class Inspect implements CmdProcessor {
 
     @Override
     public void process(String alias, String[] args) {
-        try {
-            if (args.length == 0) {
-                inspect("all");
-            } else {
-                for (String s : args) {
-                    inspect(s);
-                }
+        if (args.length == 0) {
+            inspect("all");
+        } else {
+            for (String s : args) {
+                inspect(s);
             }
-        } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-            throw new RuntimeException(e);
         }
     }
 }
