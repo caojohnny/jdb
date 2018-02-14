@@ -16,14 +16,12 @@
  */
 package com.gmail.woodyc40.topics.cmd;
 
+import com.gmail.woodyc40.topics.infra.Frame;
 import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
-import com.sun.jdi.Location;
 import com.sun.jdi.Method;
-import com.sun.jdi.Value;
 import com.sun.jdi.event.BreakpointEvent;
 
-import java.util.Map;
 import java.util.Queue;
 
 public class Returns implements CmdProcessor {
@@ -62,13 +60,14 @@ public class Returns implements CmdProcessor {
         }
 
         boolean found = false;
-        Queue<Map.Entry<Location, Value>> returns = JvmContext.getContext().getReturns();
-        for (Map.Entry<Location, Value> aReturn : returns) {
-            Location loc = aReturn.getKey();
-            if (true) {
+        Queue<Frame> returns = JvmContext.getContext().getReturns();
+        String string = method.toString();
+        for (Frame aReturn : returns) {
+            String loc = aReturn.getCallerSignature();
+            if (loc.equals(string)) {
                 found = true;
 
-                System.out.println(loc.declaringType().name() + " = " + aReturn.getValue());
+                System.out.println(aReturn.getResultLocation().method() + " = " + aReturn.getResult());
             }
         }
 

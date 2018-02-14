@@ -59,7 +59,7 @@ public final class JvmContext {
     @Getter
     private final Queue<List<StackFrame>> previousFrames = new ConcurrentLinkedQueue<>();
     @Getter
-    private final Queue<Map.Entry<Location, Value>> returns = new ConcurrentLinkedQueue<>();
+    private final Queue<Frame> returns = new ConcurrentLinkedQueue<>();
     /** Lock used to protect the breakpoint events */
     @Getter
     private final Object lock = new Object();
@@ -216,9 +216,21 @@ public final class JvmContext {
                                     MethodExitEvent exit = (MethodExitEvent) event;
                                     Value value = exit.returnValue();
 
-                                    returns.add(new AbstractMap.SimpleImmutableEntry<>(exit.location(), value));
-                                    if (!exit.thread().isAtBreakpoint()) {
-                                        exit.thread().resume();
+                                    ThreadReference thread = exit.thread();
+                                    StackFrame frame = null;
+                                    try {
+                                        for (int i = 0; i < thread.frames().size(); i++) {
+                                            frame = thread.frames().get(i);
+                                            System.out.println(i + " = " + exit.location().method() + " called by " + frame.location().method());
+                                        }
+                                    } catch (IncompatibleThreadStateException e) {
+                                        System.out.println("Cannot retrieve stack frames");
+                                    }
+
+                                    returns.add(new Frame(exit.location(), value, frame.location().method().toString(), System.currentTimeMillis()));
+
+                                    if (!thread.isAtBreakpoint()) {
+                                        thread.resume();
                                     }
                                 }
                             }
