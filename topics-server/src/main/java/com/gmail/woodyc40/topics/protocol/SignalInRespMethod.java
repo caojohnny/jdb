@@ -30,6 +30,8 @@ import org.objectweb.asm.Opcodes;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A signal response in which the payload is the bytecode
@@ -46,6 +48,9 @@ import java.io.IOException;
  * byte[]:strData
  */
 public class SignalInRespMethod implements SignalIn {
+    private static final Set<String> EV_CACHE =
+            new HashSet<>();
+
     private static String readString(DataInputStream in) throws IOException {
         int strLen = in.readInt();
         byte[] data = new byte[strLen];
@@ -73,14 +78,24 @@ public class SignalInRespMethod implements SignalIn {
                 return new MethodVisitor(this.api) {
                     @Override
                     public void visitMethodInsn(int opcode, String owner, String na, String de, boolean itf) {
+                        if (!EV_CACHE.contains(owner)) {
+                            EV_CACHE.add(owner);
+                        } else {
+                            return;
+                        }
+
                         VirtualMachine vm = JvmContext.getContext().getVm();
                         EventRequestManager erm = vm.eventRequestManager();
                         ReferenceType type = vm.classesByName(owner.replaceAll("/", "\\.")).get(0);
                         MethodExitRequest req = erm.createMethodExitRequest();
                         for (Method method : type.methodsByName(na)) {
-                            if (method.signature().equals(de)) {
+                            if (method.signature().equals(de) &&
+                                    !method.isConstructor()) {
+                                if (method.returnTypeName().equals("void")) {
+                                    continue;
+                                }
+
                                 req.addClassFilter(type);
-                                req.enable();
                             }
                         }
                         req.enable();

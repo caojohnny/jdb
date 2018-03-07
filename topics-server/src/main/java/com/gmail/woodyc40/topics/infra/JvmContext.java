@@ -212,26 +212,25 @@ public final class JvmContext {
                                         Main.printAsync("Code context:");
                                         Main.printAsync(string);
                                     }
+                                } else if (event instanceof MethodEntryEvent) {
                                 } else if (event instanceof MethodExitEvent) {
                                     MethodExitEvent exit = (MethodExitEvent) event;
                                     Value value = exit.returnValue();
-
                                     ThreadReference thread = exit.thread();
-                                    StackFrame frame = null;
+                                    if (!thread.isAtBreakpoint()) {
+                                        eventSet.resume();
+                                        continue;
+                                    }
+
+                                    StackFrame frame;
                                     try {
-                                        for (int i = 0; i < thread.frames().size(); i++) {
-                                            frame = thread.frames().get(i);
-                                            System.out.println(i + " = " + exit.location().method() + " called by " + frame.location().method());
-                                        }
+                                        frame = thread.frames().get(0);
                                     } catch (IncompatibleThreadStateException e) {
-                                        System.out.println("Cannot retrieve stack frames");
+                                        System.out.println("abort: wrong thread state");
+                                        continue;
                                     }
 
                                     returns.add(new Frame(exit.location(), value, frame.location().method().toString(), System.currentTimeMillis()));
-
-                                    if (!thread.isAtBreakpoint()) {
-                                        thread.resume();
-                                    }
                                 }
                             }
                         } catch (AbsentInformationException e) {
