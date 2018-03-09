@@ -21,6 +21,7 @@ import com.google.common.base.Charsets;
 import com.sun.jdi.Method;
 import com.sun.jdi.ReferenceType;
 import com.sun.jdi.VirtualMachine;
+import com.sun.jdi.request.EventRequest;
 import com.sun.jdi.request.EventRequestManager;
 import com.sun.jdi.request.MethodExitRequest;
 import org.objectweb.asm.ClassReader;
@@ -87,7 +88,6 @@ public class SignalInRespMethod implements SignalIn {
                         VirtualMachine vm = JvmContext.getContext().getVm();
                         EventRequestManager erm = vm.eventRequestManager();
                         ReferenceType type = vm.classesByName(owner.replaceAll("/", "\\.")).get(0);
-                        MethodExitRequest req = erm.createMethodExitRequest();
                         for (Method method : type.methodsByName(na)) {
                             if (method.signature().equals(de) &&
                                     !method.isConstructor()) {
@@ -95,10 +95,12 @@ public class SignalInRespMethod implements SignalIn {
                                     continue;
                                 }
 
+                                MethodExitRequest req = erm.createMethodExitRequest();
+                                req.setSuspendPolicy(EventRequest.SUSPEND_NONE);
                                 req.addClassFilter(type);
+                                req.enable();
                             }
                         }
-                        req.enable();
                     }
                 };
             }
