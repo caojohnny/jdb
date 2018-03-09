@@ -69,7 +69,7 @@ public class Inspect implements CmdProcessor {
         try {
             list = frame.visibleVariables();
         } catch (AbsentInformationException e) {
-            System.out.println("abort: cannot grab visible variables");
+            System.out.println("abort: cannot grab visible variables (was -g specified when compiled?)");
             return;
         }
         switch (scope) {
