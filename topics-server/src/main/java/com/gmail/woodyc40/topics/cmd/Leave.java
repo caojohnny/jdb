@@ -20,10 +20,10 @@ import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.infra.command.CmdProcessor;
 import com.sun.jdi.ReferenceType;
 
-public class Exit implements CmdProcessor {
+public class Leave implements CmdProcessor {
     @Override
     public String name() {
-        return "exit";
+        return "leave";
     }
 
     @Override

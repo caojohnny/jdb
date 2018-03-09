@@ -35,7 +35,6 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -331,9 +330,8 @@ public class AgentServer {
                 this.out.add(new SignalOutExit(3, "JDB Exit"));
             }
 
-            this.ioThreads.shutdown();
-            this.ioThreads.awaitTermination(AgentServer.TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (IOException | InterruptedException e) {
+            this.ioThreads.shutdownNow();
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

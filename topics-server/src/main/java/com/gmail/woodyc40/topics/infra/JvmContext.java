@@ -282,6 +282,7 @@ public final class JvmContext {
             this.vm.dispose();
         }
 
+        this.server.close();
         this.currentRef = null;
         this.sourcePath.clear();
         this.previousFrames.clear();

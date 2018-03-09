@@ -29,9 +29,9 @@
                             <Premain-Class>
                                 com.gmail.woodyc40.topics.AgentMain
                             </Premain-Class>
-                            <Main>
+                            <Main-Class>
                                 com.gmail.woodyc40.topics.AgentMain
-                            </Main>
+                            </Main-Class>
                         </manifestEntries>
                     </archive>
                 </configuration>

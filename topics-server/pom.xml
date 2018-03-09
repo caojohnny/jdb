@@ -94,7 +94,7 @@
             <groupId>com.sun</groupId>
             <artifactId>tools</artifactId>
             <version>1.8</version>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>

@@ -134,7 +134,11 @@ public final class Main {
      * -ps
      * Prints all the signals
      */
-    private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> SignalRegistry.print());
+    private static final ArgParser PRINT_SIGNALS = ArgParser.newFlag("print-signals", "ps", s -> {
+        if (s) {
+            SignalRegistry.print();
+        }
+    });
     /** The terminal interface being used */
     private static final Terminal TERM;
     /** The terminal line reader */
@@ -213,7 +217,7 @@ public final class Main {
         manager.register(new Step());
         manager.register(new Inspect());
         manager.register(new ClearBreaks());
-        manager.register(new Exit());
+        manager.register(new Leave());
         manager.register(new InspectVar());
         manager.register(new Returns());
         manager.register(new Dump());
