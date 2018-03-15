@@ -69,7 +69,7 @@ public final class JvmContext {
     /** Should the VM exit() when detached? */
     @Getter
     @Setter
-    public volatile boolean closeOnDetach;
+    public volatile boolean closeOnDetach = true;
     /** Currently attached JVM PID */
     @Getter
     private volatile int currentPid = -1;

@@ -235,7 +235,6 @@ public final class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("Process terminating");
             JvmContext.getContext().detach();
-            client.close();
         }, "Detach hook"));
 
         PrintStream out = new PrintStream(TERM.output());
@@ -245,6 +244,10 @@ public final class Main {
         // CLOSE_ON_DETACH.parse(args);
         PRINT_PROCS.parse(args);
         AUTO_ATTACH.parse(args);
+
+        System.out.println("JDB Debugger - Johnny Cao - CS Topics 2017-18");
+        System.out.println("Type \"h\" for help");
+        System.out.println();
 
         // CLI Handling
         while (true) {
@@ -256,7 +259,6 @@ public final class Main {
 
             if (line.equals("e") || line.equals("exit")) {
                 JvmContext.getContext().detach();
-                client.close();
                 return;
             }
 
@@ -272,11 +274,15 @@ public final class Main {
      * @param line the line to print
      */
     public static void printAsync(String line) {
-        READER.callWidget(LineReader.CLEAR);
-        READER.getTerminal().writer().println(line);
-        READER.callWidget(LineReader.REDRAW_LINE);
-        READER.callWidget(LineReader.REDISPLAY);
-        READER.getTerminal().writer().flush();
+        try {
+            READER.callWidget(LineReader.CLEAR);
+            READER.getTerminal().writer().println(line);
+            READER.callWidget(LineReader.REDRAW_LINE);
+            READER.callWidget(LineReader.REDISPLAY);
+            READER.getTerminal().writer().flush();
+        } catch (IllegalStateException e) {
+            System.out.println(line);
+        }
     }
 
     /**

@@ -17,7 +17,6 @@
 package com.gmail.woodyc40.topics.server;
 
 import com.gmail.woodyc40.topics.Main;
-import com.gmail.woodyc40.topics.infra.JvmContext;
 import com.gmail.woodyc40.topics.protocol.*;
 import com.google.common.collect.Queues;
 import lombok.AccessLevel;
@@ -33,8 +32,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -79,15 +76,15 @@ public class AgentServer {
     @Getter
     private final AtomicReference<Thread> duplex = new AtomicReference<>();
     /** The threads used for Net IO */
-    private final ExecutorService ioThreads;
+    private final Thread[] threads;
     /** The current client */
     @Getter
     @Setter
     @GuardedBy("lock")
     private SocketChannel conn;
 
-    private AgentServer(int port, ExecutorService ioThreads) {
-        this.ioThreads = ioThreads;
+    private AgentServer(int port, Thread[] threads) {
+        this.threads = threads;
         try {
             this.server = ServerSocketChannel.open();
             this.server.bind(new InetSocketAddress(port));
@@ -105,11 +102,11 @@ public class AgentServer {
      * @return the server object, used to send signals
      */
     public static AgentServer initServer(int port) {
-        ExecutorService ioThreads = Executors.newFixedThreadPool(4);
-        AgentServer server = new AgentServer(port, ioThreads);
+        Thread[] threads = new Thread[4];
+        AgentServer server = new AgentServer(port, threads);
 
         // Socket duplex
-        ioThreads.execute(() -> {
+        threads[0] = new Thread(() -> {
             server.getDuplex().set(Thread.currentThread());
 
             while (!Thread.currentThread().isInterrupted()) {
@@ -226,12 +223,10 @@ public class AgentServer {
                     break;
                 }
             }
-
-            JvmContext.getContext().detach();
         });
 
         // Write processor
-        ioThreads.execute(() -> {
+        threads[1] = new Thread(() -> {
             while (true) {
                 try {
                     SignalOut take = server.getOut().take();
@@ -251,7 +246,7 @@ public class AgentServer {
         });
 
         // Read processor
-        ioThreads.execute(() -> {
+        threads[2] = new Thread(() -> {
             while (true) {
                 try {
                     InDataWrapper data = server.getIncoming().take();
@@ -266,7 +261,7 @@ public class AgentServer {
         });
 
         // Socket listener
-        ioThreads.execute(() -> {
+        threads[3] = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     SocketChannel ch = server.getServer().accept();
@@ -323,15 +318,21 @@ public class AgentServer {
     public void close() {
         this.state.set(AgentServer.SHUTDOWN);
         try {
-            this.server.close();
             this.outgoing.clear();
 
-            if (JvmContext.getContext().isCloseOnDetach()) {
-                this.out.add(new SignalOutExit(3, "JDB Exit"));
+            this.lock.lockInterruptibly();
+            try {
+                writeSignal(new SignalOutExit(3, "JDB Exit"), this.conn);
+                this.conn.close();
+            } finally {
+                this.lock.unlock();
             }
 
-            this.ioThreads.shutdownNow();
-        } catch (IOException e) {
+            this.server.close();
+            for (Thread thread : this.threads) {
+                thread.interrupt();
+            }
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
     }
