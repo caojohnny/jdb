@@ -5,8 +5,7 @@ JDB
 
 ```shell
 # Where JAVA_HOME points to the JDK
-%JAVA_HOME%\bin\java.exe -cp topics-server-1.
-0-SNAPSHOT.jar;%JAVA_HOME%\lib\tools.jar com.gmail.woodyc40.topics.Main
+%JAVA_HOME%\bin\java.exe -cp topics-server-1.0-SNAPSHOT.jar;%JAVA_HOME%\lib\tools.jar com.gmail.woodyc40.topics.Main
 ```
 
 # Target VM
